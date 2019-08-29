@@ -26,7 +26,8 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
 
   xout <- t(apply(LAA, 1, function(x, y) sort(c(x, y)), y = LenBins))
 
-  TMB_data <- list(FVec = FVec, ngtg = ngtg, LenBins = LenBins, LenMids = LenMids, ages = ages,
+  TMB_data <- list(model = "LeesApprox_internal",
+                   FVec = FVec, ngtg = ngtg, LenBins = LenBins, LenMids = LenMids, ages = ages,
                    M = M, Linf = Linf, LAA = LAA, xout = xout, LFS = LFS, L5 = L5, Vmaxlen = Vmaxlen,
                    maxage = maxage, distGTG = distGTG, rdist = rdist)
 

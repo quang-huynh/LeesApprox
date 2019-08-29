@@ -7,63 +7,47 @@ Type log2(Type x) {
 }
 
 
+// Find the conditional maximum and conditional minimum of x
+// x1 is the max of x where x < v
+// x2 is the min of x where x > v
+// Then get the y1 and y2 that correspond to x1 and x2 and interpolate
 template <class Type>
-Type int_point_internal(Type v, vector<Type> x, vector<Type> x_low, vector<Type> x_high, vector<Type> y) {
-
-  // Find the conditional maximum and conditional minimum of x
-  // x1 is the max of x among indices where x < v
-  // x2 is the min of x among indices where x > v
-  Type x1 = 0;
-  Type x2 = max(x);
-  for(int i=0;i<x.size();i++) {
-    x1 = CppAD::CondExpGt(x_low(i), Type(0), CppAD::CondExpGt(x1, x(i), x1, x(i)), x1);
-    x2 = CppAD::CondExpGt(x_high(i), Type(0), CppAD::CondExpLt(x2, x(i), x2, x(i)), x2);
-  }
-
-  // Get the index of x1 and x2 and get corresponding y1 and y2 from y
-  Type ind1 = 1;
-  Type ind2 = 1;
-  for(int i=0;i<x.size();i++) {
-    ind1 *= CppAD::CondExpEq(x1, x(i), Type(i), Type(1));
-    ind2 *= CppAD::CondExpEq(x2, x(i), Type(i), Type(1));
-  }
-  Type y1 = y(CppAD::Integer(ind1));
-  Type y2 = y(CppAD::Integer(ind2));
-
-  // Interpolate
-  Type m = (y2-y1)/(x2-x1);
-
-  return m * (v - x1) + y1;
-}
-
-template <class Type>
-Type int_point_internal2(Type v, vector<Type> x, vector<Type> y) {
-  Type ind = 1;
-  for(int i=0; i<x.size(); i++) ind *= CppAD::CondExpEq(v, x(i), Type(i), Type(1));
-  return y(CppAD::Integer(ind));
-}
-
-
-template <class Type>
-Type int_point(Type v, vector<Type> x, vector<Type> y) {
-
-  vector<Type> eq(x.size());
+Type int_point_internal(Type v, vector<Type> x, vector<Type> y) {
   vector<Type> x_low(x.size());
   vector<Type> x_high(x.size());
 
-  // Check if v (the i-th xout entry) == any of x (LAA), indices of x < v (x_low), or x > v (x_high)
+  Type vl = x(x.size()-1)+1;
   for(int i=0;i<x.size();i++) {
-    eq(i) = CppAD::CondExpEq(x(i), v, Type(1), Type(0));
-    x_low(i) = CppAD::CondExpLt(x(i), v, Type(1), Type(0)); // sums to zero if all x > v
-    x_high(i) = CppAD::CondExpGt(x(i), v, Type(1), Type(0)); // sums to zero if all x < v
+    x_low(i) = CppAD::CondExpLt(x(i), v, x(i), Type(0));
+    x_high(i) = CppAD::CondExpGt(x(i), v, x(i), vl);
   }
 
-  // Return: (1) the correspoding y if v = any of x, else
-  // (2) 0 if all x < v, else (3) 0 if all x > v, else (4) interpolate otherwise
-  Type ans = CppAD::CondExpGt(eq.sum(), Type(0), int_point_internal2(v, x, y),
-                              CppAD::CondExpLt(x_low.sum(), Type(1), Type(0),
-                                               CppAD::CondExpLt(x_high.sum(), Type(1), Type(0),
-                                                                int_point_internal(v, x, x_low, x_high, y))));
+  Type x1 = max(x_low);
+  Type x2 = min(x_high);
+  Type y1 = 0;
+  Type y2 = 0;
+  for(int i=0;i<x.size();i++) {
+    y1 = CppAD::CondExpEq(x1, x(i), y(i), y1);
+    y2 = CppAD::CondExpEq(x2, x(i), y(i), y2);
+  }
+
+  Type m = y2 - y1;
+  m /= x2 - x1;
+  return m * (v - x1) + y1;
+}
+
+
+// First, check if v (the i-th xout entry) == any of x (LAA), indices of x < v (x_low), or x > v (x_high)
+// The function returns: (1) the correspoding y if v = any of x, else
+// (2) 0 if all x < v, else (3) 0 if all x > v, else (4) interpolate otherwise
+template <class Type>
+Type int_point(Type v, vector<Type> x, vector<Type> y) {
+  Type y_eq = -1;
+  for(int i=0;i<x.size();i++) y_eq = CppAD::CondExpEq(x(i), v, y(i), y_eq);
+  Type ans = CppAD::CondExpGt(y_eq, Type(-1), y_eq,
+                              CppAD::CondExpLt(v, min(x), Type(0),
+                                               CppAD::CondExpGt(v, max(x), Type(0),
+                                                                int_point_internal(v, x, y))));
   return ans;
 }
 
@@ -93,34 +77,27 @@ Type calcprob_internal(vector<Type> x, vector<Type> y, vector<Type> ind) {
 
   matrix<Type> grid(ind_size, ind_size);
   grid.setZero();
+  Type area = 0;
   for(int i=0;i<ind_size-1;i++) {
     grid(i,i) = ind(i);
     for(int j=i+1;j<ind_size;j++) {
       grid(i,j) = CppAD::CondExpLt(grid(i,j-1), Type(2), ind(i) * (grid(i,j-1) + ind(j)), Type(3));
+      area += CppAD::CondExpEq(grid(i,j), Type(2), calcprob_internal2(x, y, i, j), Type(0));
     }
   }
-
-  vector<Type> area(ind_size-1);
-  area.setZero();
-  for(int i=0; i<ind_size-1; i++) {
-    for(int j=i+1; j<ind_size; j++) {
-      area(i) += CppAD::CondExpEq(grid(i,j), Type(2), calcprob_internal2(x, y, i, j), Type(0));
-    }
-  }
-  return area.sum();
+  return area;
 }
 
 
+// Determine if the j-th xout entry (sorted concatenation of length bin and LAA for each GTG)
+// is between the i-th and i-th + 1 length bin
+// If yes for only one j, return the interpolated value. Else, sum across j.
 template <class Type>
 vector<Type> calcprob(vector<Type> x, vector<Type> y, vector<Type> xout, vector<Type> LenBins, int nclasses) {
-  // interpolate at xout
   int xout_size = xout.size();
   vector<Type> yout(xout_size);
   yout = linear_int(x, y, xout);
 
-  // Determine if the j-th xout entry (sorted concatenation of length bin and LAA for each GTG)
-  // is between the i-th and i-th + 1 length bin
-  // If yes for only one j, return the interpolated value. Else, sum across j.
   vector<Type> Prob(nclasses);
   for(int i=0;i<nclasses;i++) {
     vector<Type> ind(xout_size);
@@ -142,16 +119,13 @@ matrix<Type> calcprob_wrapper(matrix<Type> LAA, matrix<Type> Ns, matrix<Type> xo
   for(int age=0; age<maxage; age++) {
     vector<Type> tempLAA(ngtg);
     tempLAA = LAA.row(age);
-
     vector<Type> tempNs(ngtg);
     tempNs = Ns.row(age);
-
     vector<Type> tempxout(xout.cols());
     tempxout = xout.row(age);
 
     tempprobLA(age) = calcprob(tempLAA, tempNs, tempxout, LenBins, Nbins);
-    Type Probsum = tempprobLA(age).sum();
-    for(int len=0; len<Nbins; len++) probLA(age, len) = tempprobLA(age)(len)/Probsum;
+    probLA.row(age) = tempprobLA(age)/tempprobLA(age).sum();
   }
   return probLA;
 }
@@ -181,35 +155,56 @@ vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr) {
   return sel;
 }
 
-//myseq_len
+
+// F     - vector of length n_y
+// rdist - vector of length ngtg
+// R     - vector of length n_y
+// M     - vector of length maxage
+// SAA   - matrix of maxage rows, ngtg cols
 //template <class Type>
-//vector<Type> myseq_len(Type start, Type end, int length) {
-//  Type incr = end - start;
-//  incr /= asDouble(length);
+//matrix<Type> LeesApprox(vector<Type> F, vector<Type> rdist, vector<Type> R, vector<Type> M, matrix<Type> SAA,
+//                        vector<Type> LenBins, matrix<Type> LAA, matrix<Type> xout, vector<Type> Select_at_length,
+//                        matrix<Type> weight, vector<Type> mat,
+//                        vector<Type> &Select_at_age, matrix<Type> &N, matrix<Type> &LenComp, matrix<Type> &Len_at_age,
+//                        vector<Type> &E,
+//                        int Nbins, int maxage, int ngtg, int y) {
 //
-//  vector<Type> seq_out(length);
-//  seq_out(0) = start;
-//  for(int i=1;i<length;i++) seq_out(i) = seq_out(i-1) + incr;
+//  matrix<Type> Ns(maxage, ngtg);
+//  Ns.row(0) = rdist;
 //
-//  return seq_out;
+//  int F_ind;
+//  for (int age=1; age<maxage; age++) {
+//    int yr_st = y-age-1;
+//    vector<Type> Zs(ngtg);
+//    Zs.setZero();
+//    for(int g=0; g<ngtg; g++) {
+//      for (int age2=0; age2<age; age2++) {
+//        if(yr_st + age2 < 0) F_ind = 0; else F_ind = yr_st + age2;
+//        Zs(g) += M(age2) + F(F_ind) * SAA(age2,g);
+//      }
+//      Ns(age,g) = Ns(0,g) * exp(-Zs(g));
+//    }
+//  }
+//
+//  // Calculate prob L|A
+//  matrix<Type> probLA(maxage, Nbins);
+//  probLA = calcprob_wrapper(LAA, Ns, xout, LenBins, maxage, ngtg, Nbins);
+//
+//  for(int age=0; age<maxage; age++) {
+//    Len_at_age(age) = (LAA.row(age) * Ns.row(age)).sum();
+//
+//    N(y,age) = Ns.row(age).sum();
+//    Len_at_age(y, age) /= N(y,age);
+//
+//    for(int len=0; len<Nbins; len++) {
+//      Select_at_age(y, age) += probLA(age, len) * Select_at_length(len);
+//      LenComp(y, len) += probLA(age, len) * Select_at_length(len) * Ns.row(age).sum();
+//    }
+//  }
+//
+//  LenComp /= N(y,age);
+//  LenComp /= LenComp.sum();
+//
+//  return probLA;
 //}
 
-//joinVec
-//template <class Type>
-//vector<Type> joinVec(vector<Type> V1, vector<Type> V2) {
-//  int Length = V1.size() + V2.cols();
-//  vector<Type> Vout(Length);
-//  for(int i=0;i<V1.size();i++) Vout(i) = V1(i);
-//  for(int i=0;i<V2.size();i++) Vout(V1.size()+i) = V2(i);
-//  return Vout;
-//}
-
-//joinVec
-//template <class Type>
-//vector<Type> joinVec(vector<Type> V1, matrix<Type> V2, int a) {
-//  int Length = V1.size() + V2.cols();
-//  vector<Type> Vout(Length);
-//  for(int i=0;i<V1.size();i++) Vout(i) = V1(i);
-//  for(int i=0;i<V2.size();i++) Vout(V1.size()+i) = V2(a,i);
-//  return Vout;
-//}
