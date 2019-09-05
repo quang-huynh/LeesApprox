@@ -1,5 +1,6 @@
 #include <TMB.hpp>
 #include "../inst/include/LeesApprox_TMB_fn.h"
+#include "../inst/include/ns_SCA.h"
 
 template <class Type>
 Type objective_function<Type>::operator() () {
