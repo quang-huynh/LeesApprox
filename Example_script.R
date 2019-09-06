@@ -32,7 +32,7 @@ system.time(
 GTG_31 <- SCA_GTG(Data = SimulatedData, ngtg = 31)
 )
 
-# Compare the models with 3 and 31 GTGs. Three works pretty well!
+# Compare the models with 3 and 31 GTGs. Three works pretty good!
 compare_models(GTG_3, GTG_31, label = c("3 GTG", "31 GTG"))
 
 # Let's compare with an SCA that uses age comps
