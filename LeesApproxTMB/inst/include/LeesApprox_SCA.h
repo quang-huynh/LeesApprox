@@ -17,7 +17,7 @@
   DATA_INTEGER(max_age);  // Maximum age (plus-group)
   DATA_VECTOR(M);         // Natural mortality at age
 
-  DATA_VECTOR(weight);    // Mean weight-at-age vector at the beginning of the year
+  DATA_MATRIX(WAA);       // Weight-at-age-and-GTG at the beginning of the year
   DATA_VECTOR(mat);       // Maturity-at-age at the beginning of the year
 
   DATA_STRING(I_type);    // String whether index surveys B, VB, or SSB
@@ -39,7 +39,7 @@
   DATA_VECTOR(distGTG);
   DATA_VECTOR(rdist);
 
-  DATA_INTEGER(useGTG);
+  DATA_INTEGER(use_LeesEffect);
 
   PARAMETER(log_R0);
   PARAMETER(transformed_h);
@@ -85,16 +85,21 @@
   SAA = s_dnormal(LAA, LFS, sl, sr);
 
   ////// Equilibrium reference points and per-recruit quantities
-  vector<Type> NPR_virgin(max_age);
+  matrix<Type> NPR_virgin(max_age, ngtg);
   NPR_virgin = LeesApp_fn(Type(0), rdist, M, SAA, max_age, ngtg);
 
-  Type EPR0 = sum_EPR(NPR_virgin, weight, mat);
+  Type EPR0 = 0;
+  Type B0 = 0;
 
-  Type B0 = R0 * sum_BPR(NPR_virgin, weight);
+  for(int a=0;a<max_age;a++) {
+    for(int g=0;g<ngtg;g++) {
+      EPR0 += NPR_virgin(a,g) * WAA(a,g) * mat(a);
+      B0 += NPR_virgin(a,g) * WAA(a,g);
+    }
+  }
+  B0 *= R0;
   Type N0 = R0 * NPR_virgin.sum();
   Type E0 = R0 * EPR0;
-  Type VB0 = 0;
-  //R0 * sum_VBPR(NPR_virgin, weight, vul);
 
   Type Arec;
   Type Brec;
@@ -128,10 +133,11 @@
   vector<Type> B(n_y+1);            // Total biomass at year
   vector<Type> E(n_y+1);            // Spawning biomass at year
 
-  matrix<Type> NAA(n_y, max_age);
-  vector<matrix<Type> > probLA(n_y);
-  matrix<Type> Select_at_age(n_y, max_age);
-  matrix<Type> Len_at_age(n_y, max_age);
+  //matrix<Type> NAA(n_y, max_age);
+  vector<matrix<Type> > NPR(n_y+1);
+  vector<matrix<Type> > probLA(n_y+1);
+  vector<matrix<Type> > probGTGA(n_y+1);
+  matrix<Type> Select_at_age(n_y+1, max_age);
 
   CN.setZero();
   CALpred.setZero();
@@ -141,14 +147,18 @@
   E.setZero();
 
   Select_at_age.setZero();
-  Len_at_age.setZero();
 
   // Equilibrium quantities (leading into first year of model)
-  vector<Type> NPR_equilibrium(max_age);
+  matrix<Type> NPR_equilibrium(max_age, ngtg);
   NPR_equilibrium = LeesApp_fn(F_equilibrium, rdist, M, SAA, max_age, ngtg);
-  Type EPR_eq = sum_EPR(NPR_equilibrium, weight, mat);
-  Type R_eq;
+  Type EPR_eq = 0;
+  for(int a=0;a<max_age;a++) {
+    for(int g=0;g<ngtg;g++) {
+      EPR_eq += NPR_equilibrium(a,g) * WAA(a,g) * mat(a);
+    }
+  }
 
+  Type R_eq;
   if(SR_type == "BH") {
     R_eq = Arec * EPR_eq - 1;
   } else {
@@ -158,17 +168,31 @@
 
   R(0) = R_eq;
   if(!R_IsNA(asDouble(est_rec_dev(0)))) R(0) *= exp(log_rec_dev(0) - 0.5 * pow(tau, 2));
+
+  if(use_LeesEffect) {
+    probLA(0) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
+           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0);
+  } else {
+    vector<Type> F0(n_y);
+    F0.setZero();
+    probLA(0) = LeesApp_fn(F0, Type(0), rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
+           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0);
+  }
+
   for(int a=0;a<max_age;a++) {
     if(a == 0) {
-      N(0,a) = R(0) * NPR_equilibrium(a);
+      N(0,a) = R(0) * NPR_equilibrium.row(a).sum();
     } else {
       R_early(a-1) = R_eq;
       if(!R_IsNA(asDouble(est_early_rec_dev(a-1)))) R_early(a-1) *= exp(log_early_rec_dev(a-1) - 0.5 * pow(tau, 2));
-      N(0,a) = R_early(a-1) * NPR_equilibrium(a-1);
+      N(0,a) = R_early(a-1) * NPR_equilibrium.row(a-1).sum();
     }
-    B(0) += N(0,a) * weight(a);
-    //VB(0) += N(0,a) * weight(a) * vul(a);
-    E(0) += N(0,a) * weight(a) * mat(a);
+
+    for(int g=0;g<ngtg;g++) {
+      B(0) += N(0,a) * probGTGA(0)(a,g) * WAA(a,g);
+      VB(0) += N(0,a) * probGTGA(0)(a,g) * WAA(a,g) * Select_at_age(0,a);
+      E(0) += N(0,a) * probGTGA(0)(a,g) * WAA(a,g) * mat(a);
+    }
   }
 
   // Loop over all other years
@@ -186,20 +210,29 @@
 
     F(y) = CppAD::CondExpLt(3 - exp(logF(y)), Type(0), 3 - posfun(3 - exp(logF(y)), Type(0), penalty), exp(logF(y)));
 
-    probLA(y) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length, Select_at_age,
-           Len_at_age, NAA, Nbins, max_age, ngtg, y);
+    if(use_LeesEffect) {
+      probLA(y+1) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
+             Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, y+1);
+    } else {
+      probLA(y+1) = probLA(0);
+      Select_at_age.row(y+1) = Select_at_age.row(0);
+      NPR(y+1) = NPR(0);
+      probGTGA(y+1) = probGTGA(0);
+    }
 
     for(int a=0;a<max_age;a++) {
       if(a<max_age-1) N(y+1,a+1) = N(y,a) * exp(-Select_at_age(y,a) * F(y) - M(a));
       Type meanN = N(y,a) * (1 - exp(-Select_at_age(y,a) * F(y) - M(a))) / (Select_at_age(y,a) * F(y) + M(a));
       CAApred(y,a) = Select_at_age(y,a) * F(y) * meanN;
-
-      for(int len=0;len<Nbins;len++) CALpred(y,len) += probLA(y)(a,len) * CAApred(y,a);
       CN(y) += CAApred(y,a);
-      Cpred(y) += CAApred(y,a) * weight(a);
-      B(y+1) += N(y+1,a) * weight(a);
-      VB(y+1) += N(y+1,a) * weight(a) * Select_at_age(y,a);
-      E(y+1) += N(y+1,a) * weight(a) * mat(a);
+      for(int len=0;len<Nbins;len++) CALpred(y,len) += probLA(y)(a,len) * CAApred(y,a);
+
+      for(int g=0;g<ngtg;g++) {
+        Cpred(y) += CAApred(y,a) * probGTGA(y)(a,g) * WAA(a,g);
+        B(y+1) += N(y+1,a) * probGTGA(y+1)(a,g) * WAA(a,g);
+        VB(y+1) += N(y+1,a) * probGTGA(y+1)(a,g) * WAA(a,g) * Select_at_age(y+1,a);
+        E(y+1) += N(y+1,a) * probGTGA(y+1)(a,g) * WAA(a,g) * mat(a);
+      }
     }
   }
 
@@ -267,7 +300,6 @@
   REPORT(B0);
   REPORT(N0);
   REPORT(E0);
-  REPORT(VB0);
 
   REPORT(vul_par);
   REPORT(L5);
@@ -291,9 +323,9 @@
   REPORT(E);
 
   REPORT(probLA);
-  REPORT(NAA);
+  REPORT(probGTGA);
+  REPORT(NPR);
   REPORT(SAA);
-  REPORT(Len_at_age);
   REPORT(Select_at_length);
   REPORT(Select_at_age);
 

@@ -164,11 +164,12 @@ vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr) {
 template <class Type>
 matrix<Type> LeesApp_fn(vector<Type> F, Type F_eq, vector<Type> rdist, vector<Type> M, matrix<Type> SAA,
                         vector<Type> LenBins, matrix<Type> LAA, matrix<Type> xout, vector<Type> Select_at_length,
-                        matrix<Type> &Select_at_age, matrix<Type> &Len_at_age, matrix<Type> &NAA,
+                        matrix<Type> &Select_at_age, vector<matrix<Type> > &NPR, vector<matrix<Type> > &probGTGA,
                         int Nbins, int maxage, int ngtg, int y) {
-
   matrix<Type> Ns(maxage, ngtg);
+  matrix<Type> probGTG(maxage, ngtg);
   Ns.row(0) = rdist;
+  probGTG.row(0) = rdist;
 
   for (int age=1; age<maxage; age++) {
     int yr_st = y-age-1;
@@ -184,29 +185,25 @@ matrix<Type> LeesApp_fn(vector<Type> F, Type F_eq, vector<Type> rdist, vector<Ty
       }
       Ns(age,g) = Ns(0,g) * exp(-Zs(g));
     }
+    probGTG.row(age) = Ns.row(age);
+    probGTG.row(age) /= Ns.row(age).sum();
   }
+  NPR(y) = Ns;
+  probGTGA(y) = probGTG;
 
   // Calculate prob L|A
   matrix<Type> probLA(maxage, Nbins);
   probLA = calcprob_wrapper(LAA, Ns, xout, LenBins, maxage, ngtg, Nbins);
 
   for(int age=0; age<maxage; age++) {
-    for(int g=0; g<ngtg; g++) Len_at_age(y, age) += LAA(age, g) * Ns(age, g);
-
-    NAA(y, age) = Ns.row(age).sum();
-    Len_at_age(y, age) /= NAA(y, age);
-
     for(int len=0; len<Nbins; len++) Select_at_age(y, age) += probLA(age, len) * Select_at_length(len);
-
   }
-
   return probLA;
 }
 
 
 template <class Type>
 matrix<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type> SAA, int maxage, int ngtg) {
-
   matrix<Type> Ns(maxage, ngtg);
   Ns.row(0) = rdist;
 
@@ -214,16 +211,11 @@ matrix<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type>
     vector<Type> Zs(ngtg);
     Zs.setZero();
     for(int g=0; g<ngtg; g++) {
-      for (int age2=0; age2<age; age2++) {
-        Zs(g) += M(age2) + F * SAA(age2,g);
-      }
+      for (int age2=0; age2<age; age2++) Zs(g) += M(age2) + F * SAA(age2,g);
       Ns(age,g) = Ns(0,g) * exp(-Zs(g));
     }
   }
 
-  vector<Type> NAA(maxage);
-  for(int age=0; age<maxage; age++) NAA(age) = Ns.row(age).sum();
-
-  return NAA;
+  return Ns;
 }
 
