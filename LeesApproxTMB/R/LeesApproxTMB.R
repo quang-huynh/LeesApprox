@@ -45,7 +45,63 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
 #' SCA with Growth Type Groups (GTG)
 #'
 #' Includes interpolation approximation for Lee's effect.
-#'
+#' @param x A position in the Data object (by default, equal to one for assessments).
+#' @param Data An object of class Data
+#' @param ngtg Integer, the number of growth type groups in the model.
+#' @param max_sd_gtg The number of standard deviations to span the GTGs across the length-at-age distribution.
+#' @param use_LeesEffect Logical, whether to incorporate Lee's effect in the model.
+#' @param CAL_multiplier Numeric for data weighting of catch-at-length matrix.
+#' Default is set to zero to ignore length comp data.
+#' @param CAA_multiplier Numeric for data weighting of catch-at-age matrix.
+#' Default is set to zero to ignore age comp data.
+#' @param SR Stock-recruit function (either \code{"BH"} for Beverton-Holt or \code{"Ricker"}).
+#' @param vulnerability Whether estimated vulnerability is \code{"logistic"} or \code{"dome"} (double-normal).
+#' See details for parameterization.
+#' @param I_type Whether the index surveys population biomass (B; this is the default in the DLMtool operating model),
+#' vulnerable biomass (VB), or spawning stock biomass (SSB).
+#' @param rescale A multiplicative factor that rescales the catch in the assessment model, which
+#' can improve convergence. By default, \code{"mean1"} scales the catch so that time series mean is 1, otherwise a numeric.
+#' Output is re-converted back to original units.
+#' @param max_age Integer, the maximum age (plus-group) in the model.
+#' @param start Optional list of starting values. Entries can be expressions that are evaluated in the function. See details.
+#' @param fix_h Logical, whether to fix steepness to value in \code{Data@@steep} in the model for \code{SCA}. This only affects
+#' calculation of reference points for \code{SCA2}.
+#' @param fix_F_equilibrium Logical, whether the equilibrium fishing mortality prior to the first year of the model
+#' is estimated. If \code{TRUE}, \code{F_equilibrium} is fixed to value provided in \code{start} (if provided),
+#' otherwise, equal to zero (assumes unfished conditions).
+#' @param fix_U_equilibrium Logical, same as `fix_F_equilibrium` for `SCA_Pope`.
+#' @param fix_omega Logical, whether the standard deviation of the catch is fixed. If \code{TRUE},
+#' sigma is fixed to value provided in \code{start} (if provided), otherwise, value based on \code{Data@@CV_Cat}.
+#' @param fix_sigma Logical, whether the standard deviation of the index is fixed. If \code{TRUE},
+#' sigma is fixed to value provided in \code{start} (if provided), otherwise, value based on \code{Data@@CV_Ind}.
+#' @param fix_tau Logical, the standard deviation of the recruitment deviations is fixed. If \code{TRUE},
+#' tau is fixed to value provided in \code{start} (if provided), otherwise, value based on \code{Data@@sigmaR}.
+#' @param common_dev Typically, a numeric for the number of most recent years in which a common recruitment deviation will
+#' be estimated (in \code{SCA2}, uninformative years will have a recruitment closer to the mean, which can be very misleading,
+#' especially near the end of the time series). By default, \code{"comp50"} uses the number of ages (smaller than the mode)
+#' for which the catch-at-age matrix has less than half the abundance than that at the mode.
+#' @param early_dev Character string describing the years for which recruitment deviations are estimated in \code{SCA}. By default, \code{"comp_onegen"}
+#' rec devs are estimated one full generation prior to the first year when catch-at-age (CAA) data are available. With \code{"comp"}, rec devs are
+#' estimated starting in the first year with CAA. With \code{"all"}, rec devs start at the beginning of the model.
+#' @param late_dev Typically, a numeric for the number of most recent years in which recruitment deviations will
+#' not be estimated in \code{SCA} (recruitment in these years will be based on the mean predicted by stock-recruit relationship).
+#' By default, \code{"comp50"} uses the number of ages (smaller than the mode)
+#' for which the catch-at-age matrix has less than half the abundance than that at the mode.
+#' @param integrate Logical, whether the likelihood of the model integrates over the likelihood
+#' of the recruitment deviations (thus, treating it as a random effects/state-space variable).
+#' Otherwise, recruitment deviations are penalized parameters.
+#' @param silent Logical, passed to \code{\link[TMB]{MakeADFun}}, whether TMB
+#' will print trace information during optimization. Used for dignostics for model convergence.
+#' @param opt_hess Logical, whether the hessian function will be passed to \code{\link[stats]{nlminb}} during optimization
+#' (this generally reduces the number of iterations to convergence, but is memory and time intensive and does not guarantee an increase
+#' in convergence rate). Ignored if \code{integrate = TRUE}.
+#' @param n_restart The number of restarts (calls to \code{\link[stats]{nlminb}}) in the optimization procedure, so long as the model
+#' hasn't converged. The optimization continues from the parameters from the previous (re)start.
+#' @param control A named list of agruments for optimization to be passed to
+#' \code{\link[stats]{nlminb}}.
+#' @param inner.control A named list of arguments for optimization of the random effects, which
+#' is passed on to \code{\link[TMB]{newton}}.
+#' @param ... Other arguments to be passed.
 #' @import TMB MSEtool
 #' @useDynLib LeesApproxTMB
 #' @export
@@ -57,7 +113,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
                     silent = TRUE, opt_hess = FALSE, n_restart = ifelse(opt_hess, 0, 1),
                     control = list(iter.max = 2e5, eval.max = 4e5), inner.control = list(), ...) {
 
-  dependencies <- "Data@Cat, Data@Ind, Data@Mort, Data@L50, Data@L95, Data@CAL, Data@vbK, Data@vbLinf, Data@vbt0, Data@wla, Data@wlb, Data@MaxAge"
+  dependencies <- "Data@Cat, Data@Ind, Data@Mort, Data@L50, Data@L95, Data@CAL, Data@vbK, Data@vbLinf, Data@LenCV, Data@vbt0, Data@wla, Data@wlb, Data@MaxAge"
   dots <- list(...)
   start <- lapply(start, eval, envir = environment())
 
