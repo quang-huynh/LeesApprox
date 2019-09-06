@@ -33,7 +33,7 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
                    FVec = FVec, ngtg = ngtg, LenBins = LenBins, LenMids = LenMids, ages = ages,
                    M = M, Linf = Linf, LAA = LAA, xout = xout, LFS = LFS, L5 = L5, Vmaxlen = Vmaxlen,
                    maxage = maxage, distGTG = distGTG, rdist = rdist)
-  browser()
+
   obj <- MakeADFun(data = TMB_data, parameters = list(p = 0), silent = TRUE, DLL = "LeesApproxTMB")
   report <- obj$report()
 
@@ -42,18 +42,20 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
               LenBins = report$LenBins, NAA = report$NAA))
 }
 
-#' SCA with interpolation for Lee's approximation
+#' SCA with Growth Type Groups (GTG)
+#'
+#' Includes interpolation approximation for Lee's effect.
 #'
 #' @import TMB MSEtool
 #' @useDynLib LeesApproxTMB
 #' @export
-SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logistic", "dome"),
-                           CAA_multiplier = 0, CAL_multiplier = 25,  ngtg = 3L, max_sd_gtg = 2,
-                           I_type = c("B", "VB", "SSB"), rescale = "mean1", max_age = Data@MaxAge,
-                           start = NULL, fix_h = TRUE, fix_F_equilibrium = TRUE, fix_omega = TRUE, fix_sigma = FALSE, fix_tau = TRUE,
-                           early_dev = c("comp_onegen", "comp", "all"), late_dev = "comp50", integrate = FALSE,
-                           silent = TRUE, opt_hess = FALSE, n_restart = ifelse(opt_hess, 0, 1),
-                           control = list(iter.max = 2e5, eval.max = 4e5), inner.control = list(), ...) {
+SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logistic", "dome"),
+                    CAA_multiplier = 0, CAL_multiplier = 25, ngtg = 3L, max_sd_gtg = 2, use_LeesEffect = TRUE,
+                    I_type = c("B", "VB", "SSB"), rescale = "mean1", max_age = Data@MaxAge,
+                    start = NULL, fix_h = TRUE, fix_F_equilibrium = TRUE, fix_omega = TRUE, fix_sigma = FALSE, fix_tau = TRUE,
+                    early_dev = c("comp_onegen", "comp", "all"), late_dev = "comp50", integrate = FALSE,
+                    silent = TRUE, opt_hess = FALSE, n_restart = ifelse(opt_hess, 0, 1),
+                    control = list(iter.max = 2e5, eval.max = 4e5), inner.control = list(), ...) {
 
   dependencies <- "Data@Cat, Data@Ind, Data@Mort, Data@L50, Data@L95, Data@CAL, Data@vbK, Data@vbLinf, Data@vbt0, Data@wla, Data@wlb, Data@MaxAge"
   dots <- list(...)
@@ -122,7 +124,7 @@ SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = 
   LAA <- outer(1 - exp(-K * (c(1:max_age) - t0)), Linfgtg)
   xout <- t(apply(LAA, 1, function(x, y) sort(c(x, y)), y = CAL_bins))
 
-  LH <- list(mean_LAA = La, mean_WAA = Wa, Linf = Linf, K = K, t0 = t0, a = a, b = b, A50 = A50, A95 = A95)
+  LH <- list(mean_LAA = La, mean_WAA = Wa, Linf = Linf, K = K, t0 = t0, a = a, b = b, A50 = A50, A95 = A95, LenCV = LenCV)
 
   if(early_dev == "all") {
     est_early_rec_dev <- rep(1, max_age-1)
@@ -162,10 +164,10 @@ SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = 
                CAA_hist = t(apply(CAA_hist, 1, function(x) x/sum(x))), CAA_n = CAA_n_rescale,
                CAL_hist = t(apply(CAL_hist, 1, function(x) x/sum(x))), CAL_n = CAL_n_rescale,
                n_y = n_y, max_age = max_age, M = M,
-               weight = Wa, mat = mat_age, I_type = I_type,
+               WAA = a * LAA^b, mat = mat_age, I_type = I_type,
                SR_type = SR, est_early_rec_dev = est_early_rec_dev, est_rec_dev = est_rec_dev,
                ngtg = ngtg, Nbins = length(CAL_mids), LenBins = CAL_bins, LenMids = CAL_mids, Linf = Linf,
-               LAA = LAA, xout = xout, distGTG = distGTG, rdist = rdist, useGTG = as.integer(TRUE))
+               LAA = LAA, xout = xout, distGTG = distGTG, rdist = rdist, use_LeesEffect = as.integer(use_LeesEffect))
 
   # Starting values
   params <- list()
@@ -283,7 +285,7 @@ SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = 
 
   random <- NULL
   if(integrate) random <- c("log_early_rec_dev", "log_rec_dev")
-  browser()
+
   obj <- MakeADFun(data = info$data, parameters = info$params, hessian = TRUE,
                    map = map, random = random, DLL = "LeesApproxTMB", inner.control = inner.control, silent = silent)
 
@@ -291,6 +293,9 @@ SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = 
   opt <- mod[[1]]
   SD <- mod[[2]]
   report <- obj$report(obj$env$last.par.best)
+  report$Len_at_age <- t(sapply(report$NPR, function(x, y) rowSums(x*y)/rowSums(x), y = info$data$LAA))
+  report$Wt_at_age <- t(sapply(report$NPR, function(x, y) rowSums(x*y)/rowSums(x), y = info$data$WAA))
+  report$VB0 <- NA
 
   if(rescale != 1) {
     vars_div <- c("B", "E", "CAApred", "CALpred", "CN", "Cpred", "N", "VB", "R", "R_early", "VB0", "R0", "B0", "E0", "N0")
@@ -311,7 +316,7 @@ SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = 
   Dev_out <- structure(Dev, names = YearDev)
 
   nll_report <- ifelse(is.character(opt), ifelse(integrate, NA, report$nll), opt$objective)
-  Assessment <- new("Assessment", Model = "SCA_LeesApprox", Name = Data@Name, conv = !is.character(SD) && SD$pdHess,
+  Assessment <- new("Assessment", Model = "SCA_GTG", Name = Data@Name, conv = !is.character(SD) && SD$pdHess,
                     B0 = report$B0, R0 = report$R0, N0 = report$N0,
                     SSB0 = report$E0, VB0 = report$VB0,
                     h = report$h, FMort = structure(report$F, names = Year),
@@ -338,48 +343,76 @@ SCA_LeesApprox <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = 
                     info = info, obj = obj, opt = opt, SD = SD, TMB_report = report,
                     dependencies = dependencies)
 
-  #if(Assessment@conv) {
-  #  ref_pt <- SCA_MSY_calc(Arec = report$Arec, Brec = report$Brec, M = M, weight = Wa, mat = mat_age, vul = report$vul, SR = SR)
-  #  report <- c(report, ref_pt)
-#
-  #  if(integrate) {
-  #    if(!all(is.na(est_early_rec_dev))) SE_Early <- sqrt(SD$diag.cov.random[names(SD$par.random) == "log_early_rec_dev"])
-  #    SE_Main <- sqrt(SD$diag.cov.random[names(SD$par.random) == "log_rec_dev"])
-  #  } else {
-  #    if(!all(is.na(est_early_rec_dev))) SE_Early <- sqrt(diag(SD$cov.fixed)[names(SD$par.fixed) == "log_early_rec_dev"])
-  #    SE_Main <- sqrt(diag(SD$cov.fixed)[names(SD$par.fixed) == "log_rec_dev"])
-  #  }
-#
-  #  SE_Early2 <- est_early_rec_dev
-  #  if(!all(is.na(est_early_rec_dev))) {
-  #    SE_Early2[!is.na(SE_Early2)] <- SE_Early
-  #  }
-  #  SE_Main2 <- est_rec_dev
-  #  SE_Main2[!is.na(SE_Main2)] <- SE_Main
-#
-  #  SE_Dev <- structure(c(rev(SE_Early2), SE_Main2), names = YearDev)
-#
-  #  first_non_zero <- which(!is.na(SE_Dev))[1]
-  #  if(!is.na(first_non_zero) && first_non_zero > 1) {
-  #    Dev_out <- Dev_out[-c(1:(first_non_zero - 1))]
-  #    SE_Dev <- SE_Dev[-c(1:(first_non_zero - 1))]
-  #    SE_Dev[is.na(SE_Dev)] <- 0
-  #  }
-#
-  #  Assessment@FMSY <- report$FMSY
-  #  Assessment@MSY <- report$MSY
-  #  Assessment@BMSY <- report$BMSY
-  #  Assessment@SSBMSY <- report$EMSY
-  #  Assessment@VBMSY <- report$VBMSY
-  #  Assessment@F_FMSY <- structure(report$F/report$FMSY, names = Year)
-  #  Assessment@B_BMSY <- structure(report$B/report$BMSY, names = Yearplusone)
-  #  Assessment@SSB_SSBMSY <- structure(report$E/report$EMSY, names = Yearplusone)
-  #  Assessment@VB_VBMSY <- structure(report$VB/report$VBMSY, names = Yearplusone)
-  #  Assessment@Dev <- Dev_out
-  #  Assessment@SE_Dev <- SE_Dev
-  #  Assessment@TMB_report <- report
-  #}
-  #return(Assessment)
+  if(Assessment@conv) {
+    ref_pt <- SCA_GTG_MSY_calc(report, info$data)
+    report <- c(report, ref_pt)
+
+    if(integrate) {
+      if(!all(is.na(est_early_rec_dev))) SE_Early <- sqrt(SD$diag.cov.random[names(SD$par.random) == "log_early_rec_dev"])
+      SE_Main <- sqrt(SD$diag.cov.random[names(SD$par.random) == "log_rec_dev"])
+    } else {
+      if(!all(is.na(est_early_rec_dev))) SE_Early <- sqrt(diag(SD$cov.fixed)[names(SD$par.fixed) == "log_early_rec_dev"])
+      SE_Main <- sqrt(diag(SD$cov.fixed)[names(SD$par.fixed) == "log_rec_dev"])
+    }
+
+    SE_Early2 <- est_early_rec_dev
+    if(!all(is.na(est_early_rec_dev))) {
+      SE_Early2[!is.na(SE_Early2)] <- SE_Early
+    }
+    SE_Main2 <- est_rec_dev
+    SE_Main2[!is.na(SE_Main2)] <- SE_Main
+
+    SE_Dev <- structure(c(rev(SE_Early2), SE_Main2), names = YearDev)
+
+    first_non_zero <- which(!is.na(SE_Dev))[1]
+    if(!is.na(first_non_zero) && first_non_zero > 1) {
+      Dev_out <- Dev_out[-c(1:(first_non_zero - 1))]
+      SE_Dev <- SE_Dev[-c(1:(first_non_zero - 1))]
+      SE_Dev[is.na(SE_Dev)] <- 0
+    }
+
+    Assessment@FMSY <- report$FMSY
+    Assessment@MSY <- report$MSY
+    Assessment@BMSY <- report$BMSY
+    Assessment@SSBMSY <- report$EMSY
+    Assessment@VBMSY <- report$VBMSY
+    Assessment@F_FMSY <- structure(report$F/report$FMSY, names = Year)
+    Assessment@B_BMSY <- structure(report$B/report$BMSY, names = Yearplusone)
+    Assessment@SSB_SSBMSY <- structure(report$E/report$EMSY, names = Yearplusone)
+    Assessment@VB_VBMSY <- structure(report$VB/report$VBMSY, names = Yearplusone)
+    Assessment@Dev <- Dev_out
+    Assessment@SE_Dev <- SE_Dev
+    Assessment@TMB_report <- report
+  }
+  return(Assessment)
 }
-class(SCA_LeesApprox) <- "Assess"
+class(SCA_GTG) <- "Assess"
+
+
+
+SCA_GTG_MSY_calc <- function(report, dat) {
+  TMB_data <- list(model = "LeesApprox_MSY",
+                   max_age = dat$max_age, M = dat$M, WAA = dat$WAA, mat = dat$mat,
+                   SR_type = dat$SR_type, ngtg = dat$ngtg, Nbins = dat$Nbins,
+                   LenBins = dat$LenBins, SAA = report$SAA, Select_at_length = report$Select_at_length,
+                   LAA = dat$LAA, xout = dat$xout, distGTG = dat$distGTG, rdist = dat$rdist,
+                   use_LeesEffect = dat$use_LeesEffect)
+
+  TMB_params <- list(log_F = log(0.1), Arec = report$Arec, Brec = report$Brec)
+  map <- list()
+  map$Arec <- map$Brec <- factor(NA)
+
+  obj <- MakeADFun(TMB_data, TMB_params, map = map, DLL = "LeesApproxTMB", silent = TRUE)
+  opt <- optimize(obj$fn, c(-6, 6))
+  report <- obj$report(obj$env$last.par.best)
+
+  FMSY <- report$F
+  MSY <- report$Yield
+  VBMSY <- report$VB
+  RMSY <- report$R
+  BMSY <- report$B
+  EMSY <- report$E
+
+  return(list(FMSY = FMSY, MSY = MSY, VBMSY = VBMSY, RMSY = RMSY, BMSY = BMSY, EMSY = EMSY))
+}
 
