@@ -1,4 +1,7 @@
 
+
+
+
 //template <class Type>
 //Type objective_function<Type>::operator() () {
 
@@ -23,6 +26,12 @@
   DATA_VECTOR(distGTG);
   DATA_VECTOR(rdist);
 
+  DATA_IMATRIX(interp_check);
+  DATA_IMATRIX(interp_check2);
+  DATA_IMATRIX(integ_check);
+  DATA_IVECTOR(integ_fac);
+  DATA_IVECTOR(integ_ind);
+
   DATA_INTEGER(use_LeesEffect);
 
   PARAMETER(log_F);
@@ -30,6 +39,9 @@
   PARAMETER(Brec);
 
   Type F = exp(log_F);
+
+  // Split integration indices
+  vector<vector<int> > integ_index = split(integ_ind, integ_fac);
 
   ////// GTG calcs
   matrix<Type> NPR(max_age, ngtg);
@@ -45,11 +57,13 @@
   Select_at_age.setZero();
 
   if(use_LeesEffect) {
-    probLA = calcprob_wrapper(LAA, NPR, xout, LenBins, max_age, ngtg, Nbins);
+    probLA = calcprob(LAA, NPR, xout, LenBins, max_age, ngtg, Nbins, interp_check, interp_check2,
+                      integ_check, integ_index);
   } else {
     matrix<Type> NPR_F0(max_age, ngtg);
     NPR_F0 = LeesApp_fn(Type(0), rdist, M, SAA, max_age, ngtg);
-    probLA = calcprob_wrapper(LAA, NPR_F0, xout, LenBins, max_age, ngtg, Nbins);
+    probLA = calcprob(LAA, NPR_F0, xout, LenBins, max_age, ngtg, Nbins, interp_check, interp_check2,
+                      integ_check, integ_index);
   }
 
   // Equilibrium reference points and per-recruit quantities
@@ -103,4 +117,3 @@
   return -1 * Yield;
 
 //}
-

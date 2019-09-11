@@ -39,6 +39,12 @@
   DATA_VECTOR(distGTG);
   DATA_VECTOR(rdist);
 
+  DATA_IMATRIX(interp_check);
+  DATA_IMATRIX(interp_check2);
+  DATA_IMATRIX(integ_check);
+  DATA_IVECTOR(integ_fac);
+  DATA_IVECTOR(integ_ind);
+
   DATA_INTEGER(use_LeesEffect);
 
   PARAMETER(log_R0);
@@ -69,6 +75,9 @@
 
   Type penalty = 0;
   Type prior = 0.;
+
+  // Split integration indices
+  vector<vector<int> > integ_index = split(integ_ind, integ_fac);
 
   // Calculate selectivity-at-length
   Type LFS = invlogit(vul_par(0)) * 0.75 * Linf;
@@ -171,12 +180,14 @@
 
   if(use_LeesEffect) {
     probLA(0) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
-           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0);
+           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0, interp_check, interp_check2,
+           integ_check, integ_index);
   } else {
     vector<Type> F0(n_y);
     F0.setZero();
     probLA(0) = LeesApp_fn(F0, Type(0), rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
-           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0);
+           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0, interp_check, interp_check2,
+           integ_check, integ_index);
   }
 
   for(int a=0;a<max_age;a++) {
@@ -212,7 +223,8 @@
 
     if(use_LeesEffect) {
       probLA(y+1) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
-             Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, y+1);
+             Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, y+1, interp_check, interp_check2,
+             integ_check, integ_index);
     } else {
       probLA(y+1) = probLA(0);
       Select_at_age.row(y+1) = Select_at_age.row(0);
@@ -337,6 +349,4 @@
   REPORT(prior);
 
   return nll;
-  //}
-
-
+//}

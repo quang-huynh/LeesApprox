@@ -1,6 +1,38 @@
 
 logit <- function(x) qlogis(x)
 
+interpolation_in_interval <- function(v, x, cond) {
+  if(cond == 1) {
+    # If v == x Returns the index for yout (remember C++ indexing starts at zero),
+    # else returns a negative number if v is outside the range of x (LAA)
+    if(sum(v == x) == 1) {
+      return(which(v == x)-1)
+    } else if(v < min(x) || v > max(x)) {
+      return(-1)
+    } else return(-2)
+  }
+
+  if(cond == 2 && all(v != x) && v > min(x) && v < max(x)) return(max(which(v > x)) - 1) # x1 in TMB code, x2 is x1 + 1
+
+  if(cond == 3 && all(v != x) && v > min(x) && v < max(x)) {
+    test <- c(max(which(v > x)), min(which(v < x)))
+    return(test[2] - test[1] == 1)
+  }
+
+  return(NA)
+}
+
+find_interval <- function(xout, LenBins, Nbins) xout >= LenBins[1:Nbins] & xout <= LenBins[2:(Nbins+1)]
+
+make_integrate_indices <- function(ind) {
+  res <- apply(ind, c(1, 3), function(x) which(as.logical(x))-1)
+  res2 <- lapply(res, identity)
+
+  f_a_l <-  rep(1:length(res), times = vapply(res2, length, numeric(1))) - 1
+  integ_ind <- do.call(c, res)
+  return(list(f_a_l, integ_ind))
+}
+
 #' Lees Approximation interpolation function
 #'
 #' Primarily used to verify that output from TMB will match that from Rcpp to numerical precision.
@@ -29,10 +61,28 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
 
   xout <- t(apply(LAA, 1, function(x, y) sort(c(x, y)), y = LenBins))
 
+  # For interpolation function int_point
+  interp_check <- interp_check2 <- matrix(NA, maxage, ncol(xout))
+  for(a in 1:maxage) {
+    interp_check[a, ] <- vapply(xout[a, ], interpolation_in_interval, numeric(1), x = LAA[a, ], cond = 1)
+    interp_check2[a, ] <- vapply(xout[a, ], interpolation_in_interval, numeric(1), x = LAA[a, ], cond = 2)
+  }
+
+  # For integration
+  Nbins <- length(LenMids)
+  ind <- array(NA, c(Nbins, ncol(xout), maxage))
+  for(a in 1:maxage) {
+    ind[, , a] <- vapply(xout[a, ], find_interval, numeric(Nbins), LenBins = LenBins, Nbins = Nbins)
+  }
+  integ_check <- apply(ind, c(3, 1), function(x) as.integer(sum(x) == 1))
+  integ_ind <- make_integrate_indices(ind)
+
   TMB_data <- list(model = "LeesApprox_internal",
                    FVec = FVec, ngtg = ngtg, LenBins = LenBins, LenMids = LenMids, ages = ages,
                    M = M, Linf = Linf, LAA = LAA, xout = xout, LFS = LFS, L5 = L5, Vmaxlen = Vmaxlen,
-                   maxage = maxage, distGTG = distGTG, rdist = rdist)
+                   maxage = maxage, distGTG = distGTG, rdist = rdist,
+                   interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
+                   integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]])
 
   obj <- MakeADFun(data = TMB_data, parameters = list(p = 0), silent = TRUE, DLL = "LeesApproxTMB")
   report <- obj$report()
@@ -180,6 +230,31 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   LAA <- outer(1 - exp(-K * (c(1:max_age) - t0)), Linfgtg)
   xout <- t(apply(LAA, 1, function(x, y) sort(c(x, y)), y = CAL_bins))
 
+
+  # Interpolation
+  # Determine the GTG indices for interpolated abundance at each xout (ordered concatenation of LenBin and LAA for each GTG)
+  # interp_check evaluates if the j-th entry of xout = one of LAA or outside the range of LAA, otherwise
+  # interp_check2 identifies the indices of LAA in which xout is in between
+  interp_check <- interp_check2 <- matrix(NA, max_age, ncol(xout))
+  for(aa in 1:max_age) {
+    interp_check[aa, ] <- vapply(xout[aa, ], interpolation_in_interval, numeric(1), x = LAA[aa, ], cond = 1)
+    interp_check2[aa, ] <- vapply(xout[aa, ], interpolation_in_interval, numeric(1), x = LAA[aa, ], cond = 2)
+  }
+
+  # For integration of abundance for each length bin
+  # ind identifies the indices of xout within each length bin
+  # integ_check evaluates whether xout is on the boundary of the smallest/largest length bin, otherwise
+  # integ_ind returns the indices of yout
+  # integ_ind is a list with the indices corresponding to age and length and the indices for each xout/yout
+  # over which to sum abundances
+  Nbins <- length(CAL_mids)
+  ind <- array(NA, c(Nbins, ncol(xout), max_age))
+  for(aa in 1:max_age) {
+    ind[, , aa] <- vapply(xout[aa, ], find_interval, numeric(Nbins), LenBins = CAL_bins, Nbins = Nbins)
+  }
+  integ_check <- apply(ind, c(3, 1), function(x) as.integer(sum(x) == 1))
+  integ_ind <- make_integrate_indices(ind)
+
   LH <- list(mean_LAA = La, mean_WAA = Wa, Linf = Linf, K = K, t0 = t0, a = a, b = b, A50 = A50, A95 = A95, LenCV = LenCV)
 
   if(early_dev == "all") {
@@ -222,8 +297,11 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
                n_y = n_y, max_age = max_age, M = M,
                WAA = a * LAA^b, mat = mat_age, I_type = I_type,
                SR_type = SR, est_early_rec_dev = est_early_rec_dev, est_rec_dev = est_rec_dev,
-               ngtg = ngtg, Nbins = length(CAL_mids), LenBins = CAL_bins, LenMids = CAL_mids, Linf = Linf,
-               LAA = LAA, xout = xout, distGTG = distGTG, rdist = rdist, use_LeesEffect = as.integer(use_LeesEffect))
+               ngtg = ngtg, Nbins = Nbins, LenBins = CAL_bins, LenMids = CAL_mids, Linf = Linf,
+               LAA = LAA, xout = xout, distGTG = distGTG, rdist = rdist,
+               interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
+               integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]],
+               use_LeesEffect = as.integer(use_LeesEffect))
 
   # Starting values
   params <- list()
@@ -452,7 +530,8 @@ SCA_GTG_MSY_calc <- function(report, dat) {
                    SR_type = dat$SR_type, ngtg = dat$ngtg, Nbins = dat$Nbins,
                    LenBins = dat$LenBins, SAA = report$SAA, Select_at_length = report$Select_at_length,
                    LAA = dat$LAA, xout = dat$xout, distGTG = dat$distGTG, rdist = dat$rdist,
-                   use_LeesEffect = dat$use_LeesEffect)
+                   interp_check = dat$interp_check, interp_check2 = dat$interp_check2, integ_check = dat$integ_check,
+                   integ_fac = dat$integ_fac, integ_ind = dat$integ_ind, use_LeesEffect = dat$use_LeesEffect)
 
   TMB_params <- list(log_F = log(0.1), Arec = report$Arec, Brec = report$Brec)
   map <- list()

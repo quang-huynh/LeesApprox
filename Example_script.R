@@ -36,5 +36,7 @@ GTG_31 <- SCA_GTG(Data = SimulatedData, ngtg = 31)
 compare_models(GTG_3, GTG_31, label = c("3 GTG", "31 GTG"))
 
 # Let's compare with an SCA that uses age comps
+system.time(
 age_SCA <- SCA(Data = SimulatedData)
+)
 compare_models(GTG_3, age_SCA, label = c("3 GTG", "age comp SCA"))

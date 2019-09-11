@@ -19,7 +19,16 @@
   DATA_VECTOR(distGTG);
   DATA_VECTOR(rdist);
 
+  DATA_IMATRIX(interp_check);
+  DATA_IMATRIX(interp_check2);
+  DATA_IMATRIX(integ_check);
+  DATA_IVECTOR(integ_fac);
+  DATA_IVECTOR(integ_ind);
+
   PARAMETER(p);
+
+  // Split integration indices
+  vector<vector<int> > integ_index = split(integ_ind, integ_fac);
 
   // calculate selectivity-at-age for each GTG
   Type sl = (LFS - L5) / pow(-log2(0.05), 0.5);
@@ -49,7 +58,8 @@
   // Calculate prob L|A
   int Nbins = LenBins.size() - 1;
   matrix<Type> probLA(maxage, Nbins);
-  probLA = calcprob_wrapper(LAA, Ns, xout, LenBins, maxage, ngtg, Nbins);
+  probLA = calcprob(LAA, Ns, xout, LenBins, maxage, ngtg, Nbins, interp_check, interp_check2,
+                    integ_check, integ_index);
 
   // Calculate mean selectivity-at-age and mean length-at-age and fished length composition
   vector<Type> Select_at_age(maxage);
@@ -85,6 +95,8 @@
   REPORT(LenMids);
   REPORT(LenBins);
   REPORT(NAA);
+
+  REPORT(integ_index);
 
   return p;
 

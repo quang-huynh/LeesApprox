@@ -65,6 +65,8 @@ plot_yield_SCA_GTG <- function(dat, report, fmsy, msy, xaxis = c("F", "Biomass",
                    SR_type = dat$SR_type, ngtg = dat$ngtg, Nbins = dat$Nbins,
                    LenBins = dat$LenBins, SAA = report$SAA, Select_at_length = report$Select_at_length,
                    LAA = dat$LAA, xout = dat$xout, distGTG = dat$distGTG, rdist = dat$rdist,
+                   interp_check = dat$interp_check, interp_check2 = dat$interp_check2, integ_check = dat$integ_check,
+                   integ_fac = dat$integ_fac, integ_ind = dat$integ_ind,
                    use_LeesEffect = dat$use_LeesEffect)
 
   TMB_params <- list(log_F = log(0.1), Arec = report$Arec, Brec = report$Brec)

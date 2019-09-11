@@ -105,7 +105,9 @@ if(conv && !"transformed_h" %in% names(obj$env$map)) {
 ```
 
 ```{r, fig.cap="Estimated selectivity at length."}
-plot_ogive(info$data$LenMids, TMB_report$Select_at_length)
+plot(info$data$LenMids, TMB_report$Select_at_length, xlab = "Length", ylab = "Selectivity", typ = 'n', ylim = c(0, 1.1))
+abline(h = 0, col = 'grey')
+lines(info$data$LenMids, TMB_report$Select_at_length, typ = 'o')
 ```
 
 ```{r, fig.cap="Annual selectivity at age."}
