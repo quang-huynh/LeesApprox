@@ -80,7 +80,7 @@
   vector<vector<int> > integ_index = split(integ_ind, integ_fac);
 
   // Calculate selectivity-at-length
-  Type LFS = invlogit(vul_par(0)) * 0.75 * Linf;
+  Type LFS = invlogit(vul_par(0)) * 0.9 * Linf;
   Type L5 = LFS - exp(vul_par(1));
   Type Vmaxlen = invlogit(vul_par(2));
 
