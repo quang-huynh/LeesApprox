@@ -1,4 +1,13 @@
 
+template <class Type>
+Type dmultinom_robust(vector<Type> x, vector<Type> p, int give_log=0)
+{
+  vector<Type> xp1 = x+Type(1);
+  Type logres = lgamma(x.sum() + Type(1)) - lgamma(xp1).sum();
+  for(int i=0;i<p.size();i++) logres += CppAD::CondExpGt(p(i), Type(0), x(i)*log(p(i)), Type(0));
+  if(give_log) return logres;
+  else return exp(logres);
+}
 
 
 template <class Type>

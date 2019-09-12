@@ -57,7 +57,7 @@ plot_timeseries(as.numeric(names(Obs_Index)), Obs_Index, label = "Index")
 ```
 
 ```{r, fig.cap="Age composition bubble plot."}
-if(any(info$data$CAA_n > 0)) {
+if(any(info$data$CAA_n > 0, na.rm = TRUE)) {
   ind_valid <- rowSums(Obs_C_at_age, na.rm = TRUE) > 0
   plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], ages = NULL, plot_type = "bubble_data",
                    annual_yscale = "proportions", annual_ylab = "Frequency")
@@ -65,21 +65,21 @@ if(any(info$data$CAA_n > 0)) {
 ```
 
 ```{r, fig.cap="Annual age compositions."}
-if(any(info$data$CAA_n > 0)) {
+if(any(info$data$CAA_n > 0, na.rm = TRUE)) {
   ind_valid <- rowSums(Obs_C_at_age, na.rm = TRUE) > 0
   plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], ages = NULL, plot_type = "annual", annual_yscale = "proportions", annual_ylab = "Frequency")
 }
 ```
 
 ```{r, fig.cap="Length composition bubble plot."}
-if(any(info$data$CAL_n > 0)) {
+if(any(info$data$CAL_n > 0, na.rm = TRUE)) {
   ind_valid <- rowSums(info$data$CAL_hist, na.rm = TRUE) > 0
   plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "bubble_data", annual_yscale = "proportions", annual_ylab = "Frequency")
 }
 ```
 
 ```{r, fig.cap="Length compositions."}
-if(any(info$data$CAL_n > 0)) {
+if(any(info$data$CAL_n > 0, na.rm = TRUE)) {
   ind_valid <- rowSums(info$data$CAL_hist, na.rm = TRUE) > 0
   plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "annual",
                  annual_yscale = "proportions", annual_ylab = "Frequency")
@@ -141,30 +141,30 @@ qqline(log(Obs_Catch/Catch))
 ```
 
 ```{r, fig.cap="Pearson residual bubble plot of age compositions (grey bubbles are negative, white are positive)."}
-if(any(info$data$CAA_n > 0)) {
+if(any(info$data$CAA_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(Obs_C_at_age, na.rm = TRUE) > 0
 plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], C_at_age[ind_valid, ], plot_type = "bubble_data")
 }
 ```
 
 ```{r, fig.cap="Annual observed (black) and predicted (red) age compositions."}
-if(any(info$data$CAA_n > 0)) {
+if(any(info$data$CAA_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(Obs_C_at_age, na.rm = TRUE) > 0
 plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], C_at_age[ind_valid, ], plot_type = "annual", ages = NULL, N = info$data$CAA_n[ind_valid])
 }
 ```
 
 ```{r, fig.cap="Pearson residual bubble plot of length compositions (grey bubbles are negative, white are positive)."}
-if(any(info$data$CAL_n > 0)) {
+if(any(info$data$CAL_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(info$data$CAL_hist, na.rm = TRUE) > 0
-plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], plot_type = "bubble_data")
+plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "bubble_data")
 }
 ```
 
 ```{r, fig.cap="Annual observed (black) and predicted (red) length compositions."}
-if(any(info$data$CAL_n > 0)) {
+if(any(info$data$CAL_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(info$data$CAL_hist, na.rm = TRUE) > 0
-plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], plot_type = "annual", ages = NULL, N = info$data$CAA_n[ind_valid])
+plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "annual", N = info$data$CAA_n[ind_valid])
 }
 ```
 
@@ -236,12 +236,11 @@ plot_composition(info$Year, TMB_report$CALpred, CAL_bins = info$data$LenMids, pl
 ```
 
 ```{r, fig.cap="Observed (black) and predicted (red) mean age of the composition data."}
-if(any(info$data$CAA_n > 0)) plot_composition(info$Year, Obs_C_at_age, C_at_age, plot_type = "mean")
+if(any(info$data$CAA_n > 0, na.rm = TRUE)) plot_composition(info$Year, Obs_C_at_age, C_at_age, plot_type = "mean")
 ```
 
 ```{r, fig.cap="Observed (black) and predicted (red) mean length of the composition data."}
-if(any(info$data$CAL_n > 0)) plot_composition(info$Year, info$data$CAL_hist, TMB_report$CALpred,
-                                              CAL_bins = info$data$LenMids, plot_type = "mean")
+if(any(info$data$CAL_n > 0, na.rm = TRUE)) plot_composition(info$Year, info$data$CAL_hist, TMB_report$CALpred, CAL_bins = info$data$LenMids, plot_type = "mean")
 ```
 
 ### Productivity

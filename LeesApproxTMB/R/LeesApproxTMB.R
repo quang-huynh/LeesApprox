@@ -184,28 +184,6 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   if(any(is.na(C_hist) | C_hist < 0)) warning("Error. Catch time series is not complete.")
   I_hist <- Data@Ind[x, yind]
 
-  CAA_hist <- Data@CAA[x, yind, 1:max_age]
-  if(max_age < Data@MaxAge) CAA_hist[, max_age] <- rowSums(Data@CAA[x, yind, max_age:Data@MaxAge], na.rm = TRUE)
-
-  CAA_n_nominal <- rowSums(CAA_hist)
-  if(CAA_multiplier <= 1) {
-    CAA_n_rescale <- CAA_multiplier * CAA_n_nominal
-  } else CAA_n_rescale <- pmin(CAA_multiplier, CAA_n_nominal)
-
-  CAL_hist <- Data@CAL[x, yind, ]
-  CAL_keep <- which(cumsum(colSums(CAL_hist, na.rm = TRUE)) > 0 &
-    cumsum(colSums(CAL_hist, na.rm = TRUE)) < sum(CAL_hist, na.rm = TRUE))
-  CAL_keep <- c(CAL_keep, max(CAL_keep) + 1)
-
-  CAL_hist <- CAL_hist[ , CAL_keep]
-  CAL_bins <- Data@CAL_bins[c(CAL_keep, max(CAL_keep) + 1)]
-  CAL_mids <- Data@CAL_mids[CAL_keep]
-
-  CAL_n_nominal <- rowSums(CAL_hist)
-  if(CAL_multiplier <= 1) {
-    CAL_n_rescale <- CAL_multiplier * CAL_n_nominal
-  } else CAL_n_rescale <- pmin(CAL_multiplier, CAL_n_nominal)
-
   n_y <- length(C_hist)
   M <- rep(Data@Mort[x], max_age)
   a <- Data@wla[x]
@@ -228,6 +206,31 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   Linfgtg <- Linf + LenCV * Linf * distGTG
 
   LAA <- outer(1 - exp(-K * (c(1:max_age) - t0)), Linfgtg)
+
+  # Age comps
+  CAA_hist <- try(Data@CAA[x, yind, 1:max_age], silent = TRUE)
+  if(is.character(CAA_hist)) CAA_hist <- matrix(NA, length(yind), max_age)
+  if(max_age < Data@MaxAge) CAA_hist[, max_age] <- rowSums(Data@CAA[x, yind, max_age:Data@MaxAge], na.rm = TRUE)
+
+  CAA_n_nominal <- rowSums(CAA_hist)
+  if(CAA_multiplier <= 1) {
+    CAA_n_rescale <- CAA_multiplier * CAA_n_nominal
+  } else CAA_n_rescale <- pmin(CAA_multiplier, CAA_n_nominal)
+
+  # Length comps
+  CAL_hist <- Data@CAL[x, yind, ]
+  CAL_min <- max(which(Data@CAL_bins < min(LAA)))
+  CAL_max <- min(which(Data@CAL_bins > max(LAA)))
+
+  CAL_hist <- Data@CAL[x, yind, CAL_min:(CAL_max-1)]
+  CAL_bins <- Data@CAL_bins[CAL_min:CAL_max]
+  CAL_mids <- Data@CAL_mids[CAL_min:(CAL_max-1)]
+
+  CAL_n_nominal <- rowSums(CAL_hist)
+  if(CAL_multiplier <= 1) {
+    CAL_n_rescale <- CAL_multiplier * CAL_n_nominal
+  } else CAL_n_rescale <- pmin(CAL_multiplier, CAL_n_nominal)
+
   xout <- t(apply(LAA, 1, function(x, y) sort(c(x, y)), y = CAL_bins))
 
 
@@ -357,9 +360,9 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   if(is.null(params$vul_par)) {
     CAL_mode <- which.max(colSums(CAL_hist, na.rm = TRUE))
     if((is.na(Data@LFC[x]) && is.na(Data@LFS[x])) || (Data@LFC[x] > Linf) || (Data@LFS[x] > Linf)) {
-      if(vulnerability == "logistic") params$vul_par <- c(logit(CAA_mode/Linf/0.75), log(1), 10)
+      if(vulnerability == "logistic") params$vul_par <- c(logit(CAL_mode/Linf/0.75), log(1), 10)
       if(vulnerability == "dome") {
-        params$vul_par <- c(logit(CAA_mode/Linf/0.75), log(1), logit(0.5))
+        params$vul_par <- c(logit(CAL_mode/Linf/0.75), log(1), logit(0.5))
       }
     } else {
       if(vulnerability == "logistic") params$vul_par <- c(logit(Data@LFS[x]/Linf/0.75), log(Data@LFS[x] - Data@LFC[x]), 5)
