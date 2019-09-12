@@ -219,8 +219,8 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
 
   # Length comps
   CAL_hist <- Data@CAL[x, yind, ]
-  CAL_min <- max(which(Data@CAL_bins < min(LAA)))
-  CAL_max <- min(which(Data@CAL_bins > max(LAA)))
+  CAL_min <- ifelse(all(!Data@CAL_bins < min(LAA)), 1, max(which(Data@CAL_bins < min(LAA))))
+  CAL_max <- ifelse(all(!Data@CAL_bins > max(LAA)), length(Data@CAL_bins), min(which(Data@CAL_bins > max(LAA))))
 
   CAL_hist <- Data@CAL[x, yind, CAL_min:(CAL_max-1)]
   CAL_bins <- Data@CAL_bins[CAL_min:CAL_max]
@@ -232,7 +232,6 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   } else CAL_n_rescale <- pmin(CAL_multiplier, CAL_n_nominal)
 
   xout <- t(apply(LAA, 1, function(x, y) sort(c(x, y)), y = CAL_bins))
-
 
   # Interpolation
   # Determine the GTG indices for interpolated abundance at each xout (ordered concatenation of LenBin and LAA for each GTG)
