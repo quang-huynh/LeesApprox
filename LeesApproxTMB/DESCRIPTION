@@ -7,7 +7,8 @@ Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
-Imports: TMB, MSEtool
+Depends: MSEtool
+Imports: TMB
 Encoding: UTF-8
 LazyData: true
 LinkingTo: Rcpp, TMB, RcppEigen
