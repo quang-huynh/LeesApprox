@@ -100,6 +100,8 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
 #' @param ngtg Integer, the number of growth type groups in the model.
 #' @param max_sd_gtg The number of standard deviations to span the GTGs across the length-at-age distribution.
 #' @param use_LeesEffect Logical, whether to incorporate Lee's effect in the model.
+#' @param truncate_CAL Logical, whether to truncate the length composition data at the tails if the length bins are outside the
+#' range of lengths of all growth type groups.
 #' @param CAL_multiplier Numeric for data weighting of catch-at-length matrix.
 #' Default is set to zero to ignore length comp data.
 #' @param CAA_multiplier Numeric for data weighting of catch-at-age matrix.
@@ -156,7 +158,7 @@ LeesApproxTMB <- function(FVec, ngtg, maxsd, binwidth, M,
 #' @useDynLib LeesApproxTMB
 #' @export
 SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logistic", "dome"),
-                    CAA_multiplier = 0, CAL_multiplier = 25, ngtg = 3L, max_sd_gtg = 2, use_LeesEffect = TRUE,
+                    CAA_multiplier = 0, CAL_multiplier = 25, ngtg = 3L, max_sd_gtg = 2, use_LeesEffect = TRUE, truncate_CAL = TRUE,
                     I_type = c("B", "VB", "SSB"), rescale = "mean1", max_age = Data@MaxAge,
                     start = NULL, fix_h = TRUE, fix_F_equilibrium = TRUE, fix_omega = TRUE, fix_sigma = FALSE, fix_tau = TRUE,
                     early_dev = c("comp_onegen", "comp", "all"), late_dev = "comp50", integrate = FALSE,
@@ -216,15 +218,22 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   if(CAA_multiplier <= 1) {
     CAA_n_rescale <- CAA_multiplier * CAA_n_nominal
   } else CAA_n_rescale <- pmin(CAA_multiplier, CAA_n_nominal)
+  CAA_n_rescale[!CAA_n_rescale] <- NA
 
   # Length comps
-  CAL_hist <- Data@CAL[x, yind, ]
-  CAL_min <- ifelse(all(!Data@CAL_bins < min(LAA)), 1, max(which(Data@CAL_bins < min(LAA))))
-  CAL_max <- ifelse(all(!Data@CAL_bins > max(LAA)), length(Data@CAL_bins), min(which(Data@CAL_bins > max(LAA))))
+  CAL_hist <- try(Data@CAL[x, yind, ], silent = TRUE)
+  if(is.character(CAL_hist)) CAL_hist <- matrix(NA, length(yind), length(Data@CAL_mids))
+  CAL_bins <- Data@CAL_bins
+  CAL_mids <- Data@CAL_mids
 
-  CAL_hist <- Data@CAL[x, yind, CAL_min:(CAL_max-1)]
-  CAL_bins <- Data@CAL_bins[CAL_min:CAL_max]
-  CAL_mids <- Data@CAL_mids[CAL_min:(CAL_max-1)]
+  if(truncate_CAL) {
+    CAL_min <- ifelse(all(!Data@CAL_bins < min(LAA)), 1, max(which(Data@CAL_bins < min(LAA))))
+    CAL_max <- ifelse(all(!Data@CAL_bins > max(LAA)), length(Data@CAL_bins), min(which(Data@CAL_bins > max(LAA))))
+
+    CAL_hist <- CAL_hist[ , CAL_min:(CAL_max-1), drop = FALSE]
+    CAL_bins <- CAL_bins[CAL_min:CAL_max]
+    CAL_mids <- CAL_mids[CAL_min:(CAL_max-1)]
+  }
 
   CAL_n_nominal <- rowSums(CAL_hist)
   if(CAL_multiplier <= 1) {
@@ -304,6 +313,8 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
                interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
                integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]],
                use_LeesEffect = as.integer(use_LeesEffect))
+  data$CAA_hist[data$CAA_hist < 1e-8] <- 1e-8
+  data$CAL_hist[data$CAL_hist < 1e-8] <- 1e-8
 
   # Starting values
   params <- list()

@@ -53,7 +53,7 @@ vector<Type> linear_int(matrix<Type> x, matrix<Type> y, matrix<Type> xout, int a
       yout(i) = m * (xout(a, i) - x1) + y1;
     } else if(interp_check(a, i) >= 0) { // v == one of x
       yout(i) = y(a, interp_check(a, i));
-    } else yout(i) = Type(0); // v outside range of x
+    } else yout(i) = 1e-8; // v outside range of x
   }
   return yout;
 }

@@ -11,7 +11,7 @@ library(MSEtool)
 
 # This took about 20 seconds to run
 system.time(
-GTG_3 <- SCA_GTG(Data = SimulatedData)
+GTG_3 <- SCA_GTG(Data = SimulatedData, truncate_CAL = FALSE)
 )
 
 # Turn off Lee's Effect. Runtime of 1.1 seconds

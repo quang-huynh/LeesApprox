@@ -7,8 +7,8 @@
 SCA_GTG(x = 1, Data, SR = c("BH", "Ricker"),
   vulnerability = c("logistic", "dome"), CAA_multiplier = 0,
   CAL_multiplier = 25, ngtg = 3L, max_sd_gtg = 2,
-  use_LeesEffect = TRUE, I_type = c("B", "VB", "SSB"),
-  rescale = "mean1", max_age = Data@MaxAge, start = NULL,
+  use_LeesEffect = TRUE, truncate_CAL = TRUE, I_type = c("B", "VB",
+  "SSB"), rescale = "mean1", max_age = Data@MaxAge, start = NULL,
   fix_h = TRUE, fix_F_equilibrium = TRUE, fix_omega = TRUE,
   fix_sigma = FALSE, fix_tau = TRUE, early_dev = c("comp_onegen",
   "comp", "all"), late_dev = "comp50", integrate = FALSE,
@@ -37,6 +37,9 @@ Default is set to zero to ignore length comp data.}
 \item{max_sd_gtg}{The number of standard deviations to span the GTGs across the length-at-age distribution.}
 
 \item{use_LeesEffect}{Logical, whether to incorporate Lee's effect in the model.}
+
+\item{truncate_CAL}{Logical, whether to truncate the length composition data at the tails if the length bins are outside the
+range of lengths of all growth type groups.}
 
 \item{I_type}{Whether the index surveys population biomass (B; this is the default in the DLMtool operating model),
 vulnerable biomass (VB), or spawning stock biomass (SSB).}
