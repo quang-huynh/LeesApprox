@@ -210,8 +210,6 @@ List LeesApprox(NumericVector FVec, int ngtg, double maxsd, double binwidth,
     ind -= 1;
   }
 
-
-
   // loop over ages and calculate N per recruit for each age class
   NumericMatrix Ns(maxage, ngtg);
   Ns(0,_) = rdist;
