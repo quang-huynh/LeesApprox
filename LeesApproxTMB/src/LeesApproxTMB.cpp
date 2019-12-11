@@ -1,3 +1,4 @@
+#define TMB_LIB_INIT R_init_LeesApproxTMB
 #include <TMB.hpp>
 #include "../inst/include/fn.h"
 #include "../inst/include/ns_SCA.h"
