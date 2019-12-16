@@ -129,6 +129,7 @@ GTGpopsim <- function(Linf, K, t0, M, L50, L95, LFS, L5, Vmaxlen, sigmaR, steepn
                    Linf=rep(Linfgtg, each=(nyrs*(maxage))),
                    CAA=as.vector(CAA))
   out <- list(df=df, LenBins=LenBins, LenMids=LenMids, N=Nfished)
+
   out
 }
 
