@@ -3,7 +3,7 @@
 # A. Hordyk
 # December 2019
 
-library(LeesApproxTMB)
+library(LeesApprox)
 library(dplyr)
 library(Rcpp)
 library(ggplot2)
@@ -57,389 +57,138 @@ Figure3(pars)
 
 # ---- Sensitivity Tests (Figure 4) ----
 source('Figure_4.r')
-
 Figure4()
 
-
 # ---- Assessment Model (Figure 5) ----
+
+AgeSampSize <- 250
+LengthSampSize <- 250
+
+Cobs <- rlnorm(length(annualF), 0, 0.1)
+Iobs <- rlnorm(length(annualF), 0, 0.1)
+
 
 SimPop <- GTGpopsim(Linf, K, t0, M, L50, L95, LFS, L5, Vmaxlen, sigmaR,
                     steepness, annualF,alpha, beta, LinfCV, ngtg=1001, maxsd,
                     binwidth, R0=1E5)
 
 DF <- SimPop[[1]]
-
 DF <- DF %>% group_by(Yr) %>% mutate(Catch=sum(CAA*Weight),
                                      TotalB=sum(N*Weight))
 
+TSData <- DF %>% select(Yr, Catch, Index=TotalB) %>% distinct()
+TSData$Index <- TSData$Index/mean(TSData$Index)
 
-Catch <- DF %>% select(Yr, Catch) %>% distinct()
-Index <- DF %>% select(Yr, TotalB) %>% distinct()
-
-library(purrr)
-library(tidyr)
-size <- 100
+# Catch-at-age
 DF$vulnN <- DF$N * DF$Select
-AnnualSamples <- DF %>% group_by(Yr) %>% 
-  tidyr::nest() %>%
-  ungroup() %>%
-  mutate(nsamp=size) %>%
-  mutate(rows=purrr::map2(data, nsamp, sample_n,
-                         replace=TRUE, 
-                         weight=vulnN)) %>%
-  select(-data) %>%
-  unnest(rows)
+CAA_DF <- DF %>% group_by(Yr, Age) %>% summarize(CAA=sum(CAA))
+VAge_Comp <- CAA_DF %>% tidyr::pivot_wider(names_from='Yr',
+                                           values_from="CAA")
 
-dim(AnnualSamples)
-head(AnnualSamples)
+AgeSamps <- sapply(2:length(annualF), function(i) 
+  rmultinom(n=1, size=AgeSampSize, VAge_Comp[[i+1]]))
 
-CAA_samples <- AnnualSamples %>% group_by(Yr, Age) %>% summarize(CAA=sum(CAA))
+AgeSamps <- cbind(rep(0, max(DF$Age)), AgeSamps)
+CAA <- t(AgeSamps)
 
-tt <- CAA_samples %>% tidyr::pivot_wider(names_from='Yr',
-                                   values_from="CAA")
+# Catch-at-length
+CAL <- matrix(0, nrow=length(annualF), ncol=length(SimPop$LenMids))
+for (yr in 1:length(annualF)) {
+  df <- DF %>% filter(Yr==yr)
+  lenP <- rep(0, length(SimPop$LenMids))
+  for (l in seq_along(SimPop$LenMids)) {
+    ind <- df$Length >= SimPop$LenBins[l] & df$Length < SimPop$LenBins[l+1]
+    lenP[l] <- sum(df$vulnN[ind])
+  }
+  lenP <- lenP/sum(lenP)
+  if (!all(lenP == 0)) {
+    CAL[yr,] <- t(rmultinom(n=1, size=LengthSampSize, prob=lenP))
+  } 
+}
 
-CAA_samples$Yr %>% unique()
-CAA_samples$Age %>% unique()
-
-
-CAA_samples %>% filter(Yr==1)
-
-
-head(tt)
-dim(tt)
-
-
-# Catch at age in numbers?
-
-plot(Catch, type='b')
-plot(Index, type='b')
-
-head(DF)
-
+# TO DO - Add Obs Error 
 Data <- new("Data")
 Data@CAL_bins <- SimPop$LenBins
 Data@CAL_mids <- SimPop$LenMids
+Data@CAL <- array(CAL, dim=c(1, length(annualF), length(SimPop$LenMids)))
+Data@CAA <- array(CAA, dim=c(1, length(annualF), max(DF$Age)))
 Data@Year <- unique(DF$Yr)
-Data@Cat <- matrix(Catch$Catch, nrow=1)
-Data@Ind <- matrix(Index$Index, nrow=1)
+Data@Cat <- matrix(TSData$Catch * Cobs, nrow=1)
+Data@Ind <- matrix(TSData$Index * Iobs, nrow=1)
 
+Data@MaxAge <- max(DF$Age)
+Data@Mort <- M
 Data@vbt0 <- t0
 Data@vbK <- K
 Data@vbLinf <- Linf
 Data@L50 <- L50 
 Data@L95 <- L95 
+Data@wla <- alpha
+Data@CV_vbLinf <- LinfCV
+Data@wlb <- beta
+Data@steep <- steepness
+Data@sigmaR <- sigmaR
+
+
+CAA_multiplier <- 50
+CAL_multiplier <- 0
+
+# Fit Assessment Models 
+ngtg_assess <- 3
+Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
+                CAA_multiplier=CAA_multiplier,
+                CAL_multiplier= CAL_multiplier)
+Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, use_LeesEffect = FALSE,
+                CAA_multiplier=CAA_multiplier,
+                CAL_multiplier= CAL_multiplier)
+Mod3 <- SCA(Data=Data,
+            CAA_multiplier=CAA_multiplier,
+            CAL_multiplier= CAL_multiplier)
+
+plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
+lines(Mod1@FMort, col='blue')
+lines(Mod2@FMort, col="green")
+lines(Mod3@FMort, col="red")
+
+
+
+plot(TSData$Index/max(TSData$Index), type="l", ylim=c(0, 1.5))
+lines(Mod1@B_B0, col='blue')
+lines(Mod2@B_B0, col="green")
+lines(Mod3@B_B0, col="red")
+
+
+MSEtool::compare_models(Mod1, Mod2, label = c("Lee's Effect", "No Effect"))
+
+
+source("https://raw.githubusercontent.com/quang-huynh/LeesApprox/master/SCA_GTG_markdown.R")
+plot(Mod1)
+
+Mod1@info$data$CAA_n
+Obs_C_at_age <- Mod1@Obs_C_at_age
+C_at_age <- Mod1@C_at_age
+info <- Mod1@info
+ind_valid <- rowSums(Obs_C_at_age, na.rm = TRUE) > 0
+plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], C_at_age[ind_valid, ], plot_type = "annual", ages = NULL, N = info$data$CAA_n[ind_valid])
+
+
+Mod1@FMort 
+Mod2@FMort
 
 
 # TODO - add some obs error to catch and index 
 
-# Catch data
 
-# Index 
-
-# CAA 
-
-# CAL 
-
-# Life-history
-
-
-
-
-
-
-?SCA_GTG()
-
-
-
- 
-# Generate fishery data to test assessment
-
-
-
-
-
-
-
-# for (bw in binWidthvec) {
-  # count <- count + 1
-  # Simulate length data with high resolution GTG model
-LengthData <- SimulateLengths(Linf, K, t0, M, L50, L95, L5, LFS, Vmaxlen,
-                              sigmaR, steepness, annualF, alpha, beta, LinfCV,
-                              ngtg=1001, maxsd, binwidth=bw, SampSize)
-  
-
-
-
-
-  probL <- rep(0, length(LenMids))
-  for (l in seq_along(LenMids)) {
-    ind <- DF$Length >= LenBins[l] & DF$Length < LenBins[l+1]
-    probL[l] <- sum(DF$NVuln[ind])
-  }
-
-  probL <- probL/sum(probL)
-
-
-
-  out <- list(LenMids=LenMids,
-              LenBins=LenBins,
-              FishedFreq=probL,
-              DF=DF)
-  out
-}
-
-
-
-
-# loglik <- function(x, p) sum( x * log(p) )
-
-
-saveF <- list()
-Stock_Names <- c("Queen triggerfish", "Stoplight parrotfish", "Yellowtail snapper")
-
-ngtgVec <- c(seq(3, 51, by=2), 1001)
-binWidthvec <-  c(2, 5, 10)
-
-for (st in 1:length(Stocks)) {
-  if (st == 1) {
-    count <- 0
-    store <- storeLenComp <- list()
-  }
-  Stock <- Stocks[[st]]
-  Name <- Stock_Names[st]
-  Linf <- mean(Stock@Linf)
-  K <- mean(Stock@K)
-  t0 <- mean(Stock@t0)
-  M <- mean(Stock@M)
-  maxage <- ceiling(-log(0.01)/M)
-
-  L50 <- mean(Stock@L50)
-  L95 <- L50 +  mean(Stock@L50_95)
-
-  L5 <- mean(Stock@L5) * L50
-  LFS <- mean(Stock@LFS) * L50
-  Vmaxlen <- mean(Stock@Vmaxlen)
-  sigmaR <- mean(Stock@Perr)
-  steepness <- mean(Stock@h)
-
-  alpha <- Stock@a
-  beta <- Stock@b
-  LinfCV <- 0.1
-  SampSize <- 1000
-  maxsd <- 2
-
-
-  annualF <- Ftrend(1950, 2019, 1.5*M, 'stable', Fcv=0.01, plot=FALSE)
-  saveF[[st]] <- annualF
-
-  for (bw in binWidthvec) {
-    count <- count + 1
-    # Simulate length data with high resolution GTG model
-    LengthData <- SimulateLengths(Linf, K, t0, M, L50, L95, L5, LFS, Vmaxlen,
-                                  sigmaR, steepness, annualF, alpha, beta, LinfCV,
-                                  ngtg=1001, maxsd, binwidth=bw)
-
-    LenMids <- LengthData$LenMids
-    AgeComp <- LengthData$DF %>% group_by(Age) %>% summarise(vN=sum(N))
-    # AgeComp <- LengthData$FAges
-    Prob <- LengthData$FishedFreq/sum(LengthData$FishedFreq)
-    Prob[Prob==0] <- 1E-6
-    Prob <- Prob/sum(Prob)
-
-    nout <- length(ngtgVec)
-    NLL <- rep(NA, nout)
-    Elapse <- rep(NA, nout)
-    storeLens <- list()
-    for (x in seq_along(ngtgVec)) {
-      # Simulate length data with Lee's approx method
-      gc()
-      St <- Sys.time()
-      Sim <- LeesApprox(FVec=annualF, ngtg=ngtgVec[x], maxsd, binwidth=bw, M,
-                        Linf, K, t0,  LFS, L5, Vmaxlen, LinfCV, maxage)
-      Elapse[x] <- Sys.time() - St
-
-      # Generate length Comp given age comp
-      LenComp <- rep(NA, length(LenMids))
-      for (l in 1:length(LenMids)) {
-        LenComp[l] <- sum(Sim[[1]][,l] * Sim[[4]][l]  * AgeComp$vN)
-      }
-      # LenComp <- LenComp/sum(LenComp) * SampSize
-
-      LenComp <- LenComp/sum(LenComp)
-      LenComp[LenComp==0] <- 1E-6
-
-      NLL[x] <- sum(Prob * log(LenComp/Prob))
-
-      storeLens[[x]] <- LenComp * SampSize
-
-    }
-    storeLenComp[[count]] <- data.frame(Length=unlist(storeLens), LenMids=LenMids,
-               Ngtg=rep(ngtgVec, each=length(LenMids)),
-               binWidth=bw, Stock=st)
-
-    # Elapse <- Elapse/Elapse[length(Elapse)]
-    store[[count]] <- data.frame(Name=Name, Elapse=Elapse, binWidth=bw, Stock=st,
-                                 Ngtg=ngtgVec, NLL=NLL)
-  }
-  message(st, '/', length(Stocks))
-
-}
-DF <- do.call('rbind', store)
-
-
-# Relative time of low-res approx compared to high-res model
-Max <- DF %>% group_by(Stock, binWidth) %>% filter(Ngtg==1001) %>%
-  summarise(Maxtime=Elapse, MaxNLL=NLL)
-DF <- left_join(DF, Max, by=c("Stock", "binWidth"))
-
-Elapse <- DF %>% group_by(Stock, binWidth, Ngtg) %>%
-  mutate(RelElapse=Elapse/Maxtime)
-
-Elapse <- Elapse %>% filter(Ngtg  != 1001)
-ggplot(Elapse, aes(x=Ngtg, y=RelElapse, linetype=as.factor(binWidth))) +
-  facet_wrap(~Stock) +
-  geom_line() + geom_point() +
-  geom_smooth(method='lm', formula= y~x, se=FALSE) +
-  expand_limits(y=0) + theme_classic()
-
-
-mod <- lm(Elapse ~ Ngtg + binWidth, data=Elapse)
-
-n <- 3
-bw <- 10
-coef(mod)[1] + n*coef(mod)[2] + bw*coef(mod)[3]
-
-predict(mod, newdata=data.frame(Ngtg=n, binWidth=bw))
-
-
-
-Elapse %>% group_by(Stock, binWidth) %>% summarise(mean(RelElapse))
-
-
-Elapse %>% filter(Ngtg  != 1001) %>% group_by(Stock) %>%
-  summarize(mean=1-mean(RelElapse))
-
-
-dat <- Elapse %>% group_by(Stock, Ngtg) %>%
-  filter(Ngtg  != 1001) %>% summarize(mean=mean(RelElapse))
-
-dat %>% filter(Stock==1) %>% mutate(1/mean) %>% data.frame()
-dat %>% filter(Stock==2) %>% mutate(1/mean) %>% data.frame()
-dat %>% filter(Stock==3) %>% mutate(1/mean) %>% data.frame()
-
-
-# Compare NLL
-NLLdat <- DF %>% group_by(Name, Ngtg, binWidth) %>%  filter(Ngtg!=1001) %>%
-  summarise(relNLL=-NLL/-MaxNLL) %>% ungroup()
-
-ggplot(NLLdat, aes(x=Ngtg, y=relNLL, color=as.factor(binWidth))) +
-  facet_grid(~Name) +
-  geom_line()
-
-DF %>% filter(Name=='Queen triggerfish', binWidth==10)
-
-
-
-
-
-
-NLLdat <- DF %>% group_by(Name, Ngtg, binWidth) %>%  filter(Ngtg!=1001) %>%
-  summarise(relNLL=-NLL/-MaxNLL) %>% ungroup() %>%
-  group_by(Name, Ngtg) %>% summarise(mean=mean(relNLL))
-
-P1 <- ggplot(NLLdat, aes(x=Ngtg, y=mean, linetype=Name, color=Name)) + geom_line() +
-  geom_point(size=2) +
-  theme_classic() +
-  labs(x="Number of sub-groups", y="Relative Log-likelihood")
-
-ggsave("Figures/Figure4.png", P1, width=5, height=3)
-
-
-
-
-
-# Plot Size Comps
-cols <- c("black", "darkgray")
-DF2 <- do.call('rbind', storeLenComp) %>% left_join(., Species)
-
-alpha <- 0.6
-plotDat <- DF2 %>% filter(binWidth==10, Ngtg%in% c(3, 5, 11, 51, 1001))
-
-pdat <- plotDat %>% filter(Stock==1)
-pdat2 <- pdat %>% filter(Ngtg ==1001)
-pdat3 <- pdat %>% filter(Ngtg !=1001)
-pdat3$NGTG <- pdat3$Ngtg
-pdat3$Model <- "Approximation"
-pdat2a <- rbind(pdat2, pdat2, pdat2, pdat2)
-pdat2a$Model <- "High Resolution"
-pdat2a$NGTG <- rep(unique(pdat3$Ngtg), each=nrow(pdat2))
-pdat4 <- rbind(pdat3, pdat2a)
-pdat4 <- pdat4 %>% filter(Length >=1)
-P2a <- ggplot(pdat4, aes(x=LenMids, y=Length, fill=Model)) + facet_grid(Species~NGTG) +
-  geom_bar(stat="identity",position = "identity", alpha=alpha) +
-  scale_fill_manual(values = cols) +
-  theme_classic() +
-  theme(strip.background = element_blank()) +
-  labs(x="", y="Frequency")
-
-pdat <- plotDat %>% filter(Stock==2)
-pdat2 <- pdat %>% filter(Ngtg ==1001)
-pdat3 <- pdat %>% filter(Ngtg !=1001)
-pdat3$NGTG <- pdat3$Ngtg
-pdat3$Model <- "Approximation"
-pdat2a <- rbind(pdat2, pdat2, pdat2, pdat2)
-pdat2a$Model <- "High Resolution"
-pdat2a$NGTG <- rep(unique(pdat3$Ngtg), each=nrow(pdat2))
-pdat4 <- rbind(pdat3, pdat2a)
-pdat4 <- pdat4 %>% filter(Length >=1)
-P2b <- ggplot(pdat4, aes(x=LenMids, y=Length, fill=Model)) + facet_grid(Species~NGTG) +
-  geom_bar(stat="identity",position = "identity", alpha=alpha) +
-  scale_fill_manual(values = cols) +
-  theme_classic() +
-  theme(strip.background = element_blank(),
-        strip.text.x = element_blank()) +
-  labs(x="", y="Frequency")
-
-pdat <- plotDat %>% filter(Stock==3)
-pdat2 <- pdat %>% filter(Ngtg ==1001)
-pdat3 <- pdat %>% filter(Ngtg !=1001)
-pdat3$NGTG <- pdat3$Ngtg
-pdat3$Model <- "Approximation"
-pdat2a <- rbind(pdat2, pdat2, pdat2, pdat2)
-pdat2a$Model <- "High Resolution"
-pdat2a$NGTG <- rep(unique(pdat3$Ngtg), each=nrow(pdat2))
-pdat4 <- rbind(pdat3, pdat2a)
-pdat4 <- pdat4 %>% filter(Length >=1)
-P2c <- ggplot(pdat4, aes(x=LenMids, y=Length, fill=Model)) + facet_grid(Species~NGTG) +
-  geom_bar(stat="identity",position = "identity", alpha=alpha) +
-  scale_fill_manual(values = cols) +
-  theme_classic() +
-  theme(strip.background = element_blank(),
-        strip.text.x = element_blank()) +
-  labs(x="Length", y="Frequency")
-
-P2 <- DLMtool::join_plots(list(P2a, P2b, P2c), nrow=3, ncol=1, position = "bottom")
-
-
-ggsave("Figures/Figure5.png", P2, width=9, height=6)
-
-
-# --- Fit to historical data ----
-
-Linf=100; K=0.1333; t0=0; M=0.2; L50=66; L95=70;
-L5=40; LFS=50; Vmaxlen=1; sigmaR=0.2; steepness=0.99;
-alpha=1E-5; beta=3; LinfCV=0.1;
-ngtg=1001; maxsd=2; binwidth=5; SampSize=1000
-#
-library(dplyr)
-LengthData <- SimulateLengths(Linf, K, t0, M, L50, L95, L5, LFS, Vmaxlen,
-                              sigmaR, steepness, annualF, alpha, beta, LinfCV,
-                              ngtg=1001, maxsd, binwidth=binwidth)
-
-
-Data <- new("Data")
-
-Data@
-
-GTG_1 <- SCA_GTG(Data = Data, ngtg=15)
+system.time(
+  GTG_3 <- SCA_GTG(Data = SimulatedData, truncate_CAL = FALSE, ngtg=11)
+)
+
+# Turn off Lee's Effect. Runtime of 1.1 seconds
+system.time(
+  GTG_3_noLee <- SCA_GTG(Data = SimulatedData, use_LeesEffect = FALSE, ngtg=11)
+)
+
+MSEtool::compare_models(GTG_3, GTG_3_noLee, label = c("Lee's Effect", "No Effect"))
+GTG_3@FMort
+GTG_3_noLee@FMort
 
