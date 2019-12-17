@@ -1,9 +1,10 @@
-GenerateData <- function(st=1, Years=-10, CobCV=0.1, IobCV=0.1,
+GenerateData <- function(Stock=1, Years=-10, CobCV=0.1, IobCV=0.1,
                          LH_CV=0.05,
                          LengthSampSize=250,
                          AgeSampSize=250,
                          Fmulti=1, nbins=30) {
   
+  st <- Stock
   StockNames <- c('Queen triggerfish',
                   'Stoplight parrotfish',
                   'Yellowtail snapper')
