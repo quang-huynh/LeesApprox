@@ -3,7 +3,7 @@
 # A. Hordyk
 # December 2019
 
-library(LeesApprox)
+library(LeesApproxTMB)
 library(dplyr)
 library(Rcpp)
 library(ggplot2)
@@ -57,7 +57,10 @@ Figure3(pars)
 
 # ---- Sensitivity Tests (Figure 4) ----
 source('Figure_4.r')
-Figure4()
+Fig4DF <- Figure4()
+
+
+
 
 # ---- Assessment Model (Figure 5) ----
 
