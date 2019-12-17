@@ -66,8 +66,8 @@ lines(Mod3@FMort, col="red")
 
 plot(genData$Index/genData$Index[1], type="l", ylim=c(0, 1.5))
 lines(Mod1@B_B0, col='blue')
-lines(Mod2@B_B0, col="green")
-lines(Mod3@B_B0, col="red")
+lines(Mod2@B_B0, col="green") # B_B0 > 1
+lines(Mod3@B_B0, col="red") # B_B0 > 1
 
 
 source("Manuscript/SCA_GTG_markdown.r")
