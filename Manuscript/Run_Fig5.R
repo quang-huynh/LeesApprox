@@ -14,10 +14,9 @@ AgeSampSize <- 100
 Years <- -10 # index, CAA and CAL data for last 10 years
 
 
-st <- 2 
+Stock <- 2 
 
-
-genData <- GenerateData(st=st, Years=Years, 
+genData <- GenerateData(Stock=Stock, Years=Years, 
                         CobCV=CVs, IobCV=CVs,
                         LH_CV=LH_CV,
                         LengthSampSize=LengthSampSize,
