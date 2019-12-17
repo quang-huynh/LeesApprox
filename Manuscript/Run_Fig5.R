@@ -14,7 +14,7 @@ AgeSampSize <- 100
 Years <- -10 # index, CAA and CAL data for last 10 years
 
 
-Stock <- 2 
+Stock <- 2
 
 genData <- GenerateData(Stock=Stock, Years=Years, 
                         CobCV=CVs, IobCV=CVs,
@@ -61,7 +61,7 @@ cbind(Mod1@opt, Mod2@opt,Mod3@opt)
 
 plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
 lines(Mod1@FMort, col='blue')
-lines(Mod2@FMort, col="green")
+lines(Mod2@FMort, col="green") # expect Mod2 and Mod3 to be similiar
 lines(Mod3@FMort, col="red")
 
 plot(genData$Index/genData$Index[1], type="l", ylim=c(0, 1.5))
@@ -198,59 +198,3 @@ ggplot(tt, aes(x=name, y=value)) + facet_grid(~Stock) +
 
 
   
-
-
-
-
-plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
-lines(Mod1@FMort, col='blue')
-lines(Mod2@FMort, col="green")
-
-cbind(annualF, Mod1@FMort, Mod2@FMort)
-
-
-matplot(t(Mod1@Selectivity), type="l", ylim=c(0,1))
-matplot(t(Mod2@Selectivity), type="l", ylim=c(0,1))
-
-
-plot(genData$Index/genData$Index[1], type="l", ylim=c(0, 1.5))
-lines(Mod1@B_B0, col='blue')
-lines(Mod2@B_B0, col="green")
-
-
-# source("Manuscript/SCA_GTG_markdown.r")
-# plot(Mod1)
-# plot(Mod2)
-
-
-# Fit Assessment Models - Only CAA data 
-CAA_multiplier <- 50
-CAL_multiplier <- 0
-ngtg_assess <- 11
-Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
-                CAA_multiplier=CAA_multiplier,
-                CAL_multiplier= CAL_multiplier)
-
-Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
-                use_LeesEffect = FALSE,
-                CAA_multiplier=CAA_multiplier,
-                CAL_multiplier= CAL_multiplier)
-
-Mod3 <- SCA(Data=Data,
-            CAA_multiplier=CAA_multiplier,
-            CAL_multiplier= CAL_multiplier)
-
-plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
-lines(Mod1@FMort, col='blue')
-lines(Mod2@FMort, col="green")
-lines(Mod3@FMort, col="red")
-
-matplot(t(Mod1@Selectivity), type="l")
-matplot(t(Mod2@Selectivity), type="l")
-matplot(t(Mod3@Selectivity), type="l")
-
-
-
-
-
-
