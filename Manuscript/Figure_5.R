@@ -1,7 +1,8 @@
-GenerateData <- function(st=1, CobCV=0.1, IobCV=0.1,
+GenerateData <- function(st=1, Years=-10, CobCV=0.1, IobCV=0.1,
+                         LH_CV=0.05,
                          LengthSampSize=250,
                          AgeSampSize=250,
-                         Fmulti=1, bw=5) {
+                         Fmulti=1, nbins=30) {
   
   StockNames <- c('Queen triggerfish',
                   'Stoplight parrotfish',
@@ -17,7 +18,7 @@ GenerateData <- function(st=1, CobCV=0.1, IobCV=0.1,
   K <- mean(Stock@K)
   t0 <- mean(Stock@t0)
   M <- mean(Stock@M)
-  maxage <- ceiling(-log(0.01)/M)
+  maxage <- ceiling(-log(0.001)/M)
   
   L50 <- mean(Stock@L50)
   L95 <- L50 +  mean(Stock@L50_95)
@@ -32,11 +33,24 @@ GenerateData <- function(st=1, CobCV=0.1, IobCV=0.1,
   beta <- Stock@b
   LinfCV <- 0.1
   
+ 
+  
+  LHpars <- data.frame(Stock=StockNames[st], Linf=Linf, K=K,
+                       t0=t0, M=M, maxage=maxage, L50=L50, L95=L95,
+                       L5=L5, LFS=LFS, Vmaxlen=Vmaxlen, sigmaR=sigmaR,
+                       steepness=steepness, alpha=alpha, beta=beta, LinfCV=LinfCV)
+  
   maxsd <- 2
   
+  maxL <- Linf + LinfCV*Linf*maxsd
+  
+  bins <- seq(0, to=max(maxL), length.out=nbins+1)
+  
+  binwidth <- round((bins[2] - bins[1])/5) * 5
+  
   Fm <- Fmulti * M
-  set.seed(101)
-  annualF <- Ftrend(1950, 2019, Fm, 'stable', Fcv=0.1, plot=FALSE)
+  annualF <- Ftrend(1970, 2019, Fm, 'stable', Fcv=0.1, plot=FALSE)
+  annualF[1] <- annualF[2] * 0.5
   
   SimPop <- GTGpopsim(Linf, K, t0, M, L50, L95, LFS, L5, Vmaxlen, sigmaR,
                       steepness, annualF,alpha, beta, LinfCV, ngtg=1001, maxsd,
@@ -80,6 +94,16 @@ GenerateData <- function(st=1, CobCV=0.1, IobCV=0.1,
   Cobs <- rlnorm(length(annualF), 0, CobCV)
   Iobs <- rlnorm(length(annualF), 0, IobCV)
   
+  CatchDat <- TSData$Catch * Cobs
+  IndexDat <- TSData$Index * Iobs
+  
+  AllYears <- 1:length(annualF)
+  NAYears <- 1:(length(annualF) + Years)
+ 
+  IndexDat[NAYears] <- NA
+  CAL[NAYears,] <- NA
+  CAA[NAYears,] <- NA
+  
   # TO DO - Add Obs Error 
   Data <- new("Data")
   Data@CAL_bins <- SimPop$LenBins
@@ -87,23 +111,34 @@ GenerateData <- function(st=1, CobCV=0.1, IobCV=0.1,
   Data@CAL <- array(CAL, dim=c(1, length(annualF), length(SimPop$LenMids)))
   Data@CAA <- array(CAA, dim=c(1, length(annualF), max(DF$Age)))
   Data@Year <- unique(DF$Yr)
-  Data@Cat <- matrix(TSData$Catch * Cobs, nrow=1)
-  Data@Ind <- matrix(TSData$Index * Iobs, nrow=1)
+  Data@Cat <- matrix(CatchDat, nrow=1)
+  Data@Ind <- matrix(IndexDat, nrow=1)
   
   Data@MaxAge <- max(DF$Age)
-  Data@Mort <- M
-  Data@vbt0 <- t0
-  Data@vbK <- K
-  Data@vbLinf <- Linf
-  Data@L50 <- L50 
-  Data@L95 <- L95 
+  Data@Mort <- M * rlnorm(1, 0, LH_CV)
+  Data@vbt0 <- t0 * rlnorm(1, 0, LH_CV)
+  Data@vbK <- K * rlnorm(1, 0, LH_CV)
+  Data@vbLinf <- Linf * rlnorm(1, 0, LH_CV)
+  Data@L50 <- L50 * rlnorm(1, 0, LH_CV)
+  L50_95 <- L95 - L50 
+  Data@L95 <- L50 + L50_95 * rlnorm(1, 0, LH_CV)
   Data@wla <- alpha
   Data@CV_vbLinf <- LinfCV
   Data@wlb <- beta
   Data@steep <- steepness
   Data@sigmaR <- sigmaR
   
-  Data
+  Data@AddInd <- array(NA, dim=c(1,1,1))
+  Data@CV_AddInd <- array(NA, dim=c(1,1,1))
+  Data@AddIndV <- array(NA, dim=c(1,1,1))
+  
+  out <- list()
+  out$Catch <- TSData$Catch
+  out$Index <- TSData$Index
+  out$annualF <- annualF 
+  out$Data <- Data
+  out$LHpars <- LHpars
+  out
   
   
 }
