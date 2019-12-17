@@ -42,7 +42,7 @@ Figure4 <- function() {
       Fm <- Fmulti * M 
       message('FM = ', Fm)
       set.seed(101)
-      annualF <- Ftrend(1950, 2019, Fm, 'stable', Fcv=0.1, plot=FALSE)
+      annualF <- Ftrend(1970, 2019, Fm, 'stable', Fcv=0.1, plot=FALSE)
       
       for (binwidth in bwVec) { # loop over bin widths
         message('binwidth = ', binwidth)
@@ -159,5 +159,5 @@ Figure4 <- function() {
   ggsave('Figures/Figure4.png', Figout,
          units='in', height=6, width=8)
   
-  
+  return(DF)
 }
