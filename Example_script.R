@@ -11,7 +11,7 @@ library(MSEtool)
 
 # This took about 20 seconds to run
 system.time(
-GTG_3 <- SCA_GTG(Data = SimulatedData, truncate_CAL = FALSE)
+GTG_3 <- SCA_GTG(Data = SimulatedData)
 )
 
 # Turn off Lee's Effect. Runtime of 1.1 seconds
@@ -32,6 +32,14 @@ system.time(
 GTG_31 <- SCA_GTG(Data = SimulatedData, ngtg = 31)
 )
 
+system.time(
+  GTG_501 <- SCA_GTG(Data = SimulatedData, ngtg = 501, max_sd_gtg = 3)
+)
+
+system.time(
+  GTG_501_noLee <- SCA_GTG(Data = SimulatedData, ngtg = 501, use_LeesEffect = FALSE)
+)
+
 # Compare the models with 3 and 31 GTGs. Three works pretty good!
 compare_models(GTG_3, GTG_31, label = c("3 GTG", "31 GTG"))
 
@@ -39,4 +47,4 @@ compare_models(GTG_3, GTG_31, label = c("3 GTG", "31 GTG"))
 system.time(
 age_SCA <- SCA(Data = SimulatedData)
 )
-compare_models(GTG_3, age_SCA, label = c("3 GTG", "age comp SCA"))
+compare_models(GTG_3, GTG_31, GTG_501, label = c("3 GTG", "31 GTG", "501 GTG"))

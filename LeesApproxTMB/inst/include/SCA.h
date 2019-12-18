@@ -87,15 +87,11 @@
   Type sl = (LFS - L5) / pow(-log2(0.05), 0.5);
   Type sr = (Linf - LFS) / pow(-log2(Vmaxlen), 0.5);
 
-  vector<Type> Select_at_length(Nbins);
-  Select_at_length = s_dnormal(LenMids, LFS, sl, sr);
-
-  matrix<Type> SAA(max_age, ngtg); // selectivity-at-age by GTG
-  SAA = s_dnormal(LAA, LFS, sl, sr);
+  vector<Type> Select_at_length = s_dnormal(LenMids, LFS, sl, sr);
+  matrix<Type> SAA = s_dnormal(LAA, LFS, sl, sr);
 
   ////// Equilibrium reference points and per-recruit quantities
-  matrix<Type> NPR_virgin(max_age, ngtg);
-  NPR_virgin = LeesApp_fn(Type(0), rdist, M, SAA, max_age, ngtg);
+  matrix<Type> NPR_virgin = LeesApp_fn(Type(0), rdist, M, SAA, max_age, ngtg);
 
   Type EPR0 = 0;
   Type B0 = 0;
@@ -158,8 +154,7 @@
   Select_at_age.setZero();
 
   // Equilibrium quantities (leading into first year of model)
-  matrix<Type> NPR_equilibrium(max_age, ngtg);
-  NPR_equilibrium = LeesApp_fn(F_equilibrium, rdist, M, SAA, max_age, ngtg);
+  matrix<Type> NPR_equilibrium = LeesApp_fn(F_equilibrium, rdist, M, SAA, max_age, ngtg);
   Type EPR_eq = 0;
   for(int a=0;a<max_age;a++) {
     for(int g=0;g<ngtg;g++) {
@@ -271,8 +266,6 @@
         vector<Type> loglike_CAApred(max_age);
         loglike_CAApred = CAApred.row(y)/CN(y);
         loglike_CAAobs = CAA_n(y) * CAA_hist.row(y);
-        //for(int a=0;a<max_age;a++) loglike_CAAobs(a) = CppAD::CondExpLt(CAA_hist(y,a), Type(1e-8), Type(1e-8), CAA_hist(y,a));
-        //loglike_CAAobs *= CAA_n(y);
         nll_comp(1) -= dmultinom(loglike_CAAobs, loglike_CAApred, true);
       }
 
@@ -282,8 +275,6 @@
       if(!R_IsNA(asDouble(CAL_n(y)))) {
         loglike_CALpred = CALpred.row(y)/CN(y);
         loglike_CALobs = CAL_n(y) * CAL_hist.row(y);
-        //for(int len=0;len<Nbins;len++) loglike_CALobs(len) = CppAD::CondExpLt(CAL_hist(y,len), Type(1e-8), Type(1e-8), CAL_hist(y,len));
-        //loglike_CALobs *= CAL_n(y);
         nll_comp(2) -= dmultinom(loglike_CALobs, loglike_CALpred, true);
       }
       nll_comp(3) -= dnorm(log(C_hist(y)), log(Cpred(y)), omega, true);
