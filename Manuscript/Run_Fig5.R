@@ -11,12 +11,12 @@ LH_CV <- 0.05 # obs error on life-history parameters
 
 LengthSampSize <- 100
 AgeSampSize <- 100
-Years <- NA # NA = data from all years, otherwise index, CAA and CAL data for last `Years` years
+DatYears <- 10 # NA = data from all years, otherwise index, CAA and CAL data for last `DatYears` years
 
 
 Stock <- 2
 
-genData <- GenerateData(Stock=Stock, Years=Years, 
+genData <- GenerateData(Stock=Stock, DatYears=DatYears, 
                         CobCV=CVs, IobCV=CVs,
                         LH_CV=LH_CV,
                         LengthSampSize=LengthSampSize,
@@ -33,7 +33,7 @@ fix_sigma <- TRUE
 
 control <- list(iter.max = 5e+05, eval.max = 7e+05)
 # Fit Assessment Models - Only CAA data 
-CAA_multiplier <- 50
+CAA_multiplier <- 40
 CAL_multiplier <- 0
 ngtg_assess <- 11
 
@@ -60,13 +60,22 @@ Mod3 <- SCA(Data=Data,
 data.frame(Mod=c('Mod1', 'Mod2', 'Mod3'),
            conv=c(Mod1@conv,Mod2@conv, Mod3@conv))
          
+
+sapply(c(Mod1, Mod2, Mod3), function(x) max(abs(x@SD$gradient.fixed)))
+
+
 Mod1@FMSY  
 Mod2@FMSY
 Mod3@FMSY
 
+Mod1@NLL  
+Mod2@NLL
+Mod3@NLL
+
 
 matplot(cbind(Mod1@F_FMSY, Mod2@F_FMSY, Mod3@F_FMSY), type="l")
 cbind(Mod1@opt, Mod2@opt,Mod3@opt)   
+
 
 plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
 lines(Mod1@FMort, col='blue')
