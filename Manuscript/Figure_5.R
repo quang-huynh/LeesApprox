@@ -97,7 +97,7 @@ GenerateData <- function(Stock=1, DatYears=10, CobCV=0.1, IobCV=0.1,
   CatchDat <- TSData$Catch * Cobs
   IndexDat <- TSData$Index * Iobs
   
-  if (!is.na(Years)) {
+  if (!is.na(DatYears)) {
     AllYears <- 1:length(annualF)
     NAYears <- 1:(length(annualF) - DatYears)
     
