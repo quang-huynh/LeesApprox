@@ -11,7 +11,7 @@ LH_CV <- 0.05 # obs error on life-history parameters
 
 LengthSampSize <- 100
 AgeSampSize <- 100
-Years <- -10 # index, CAA and CAL data for last 10 years
+Years <- NA # NA = data from all years, otherwase last index, CAA and CAL data for last `Years` years
 
 
 Stock <- 2
@@ -29,6 +29,7 @@ LHpars <- genData$LHpars
 
 
 vulnerability <- 'logistic' # 'dome'
+fix_sigma <- TRUE 
 
 control <- list(iter.max = 5e+05, eval.max = 7e+05)
 # Fit Assessment Models - Only CAA data 
@@ -40,23 +41,30 @@ ngtg_assess <- 11
 Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
                 CAA_multiplier=CAA_multiplier,
                 CAL_multiplier= CAL_multiplier, 
-                control=control)
+                control=control, 
+                fix_sigma =fix_sigma)
 # without GTG approx
 Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
                 use_LeesEffect = FALSE,
                 CAA_multiplier=CAA_multiplier,
                 CAL_multiplier= CAL_multiplier,
-                control=control)
+                control=control,
+                fix_sigma =fix_sigma)
 # MSEtool::SCA
 Mod3 <- SCA(Data=Data,
             CAA_multiplier=CAA_multiplier,
             CAL_multiplier= CAL_multiplier,
-            control=control)
+            control=control,
+            fix_sigma=fix_sigma)
 
 data.frame(Mod=c('Mod1', 'Mod2', 'Mod3'),
            conv=c(Mod1@conv,Mod2@conv, Mod3@conv))
-           
-cbind(Mod1@F_FMSY, Mod2@F_FMSY, Mod3@F_FMSY)
+         
+Mod1@FMSY  
+Mod2@FMSY
+Mod3@FMSY
+
+matplot(cbind(Mod1@F_FMSY, Mod2@F_FMSY, Mod3@F_FMSY), type="l")
 cbind(Mod1@opt, Mod2@opt,Mod3@opt)   
 
 plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
@@ -68,6 +76,7 @@ plot(genData$Index/genData$Index[1], type="l", ylim=c(0, 1.5))
 lines(Mod1@B_B0, col='blue')
 lines(Mod2@B_B0, col="green") # B_B0 > 1
 lines(Mod3@B_B0, col="red") # B_B0 > 1
+
 
 
 source("Manuscript/SCA_GTG_markdown.r")
