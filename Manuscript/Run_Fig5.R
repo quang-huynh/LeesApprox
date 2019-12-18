@@ -11,7 +11,7 @@ LH_CV <- 0.05 # obs error on life-history parameters
 
 LengthSampSize <- 100
 AgeSampSize <- 100
-Years <- NA # NA = data from all years, otherwase last index, CAA and CAL data for last `Years` years
+Years <- NA # NA = data from all years, otherwise index, CAA and CAL data for last `Years` years
 
 
 Stock <- 2
@@ -63,6 +63,7 @@ data.frame(Mod=c('Mod1', 'Mod2', 'Mod3'),
 Mod1@FMSY  
 Mod2@FMSY
 Mod3@FMSY
+
 
 matplot(cbind(Mod1@F_FMSY, Mod2@F_FMSY, Mod3@F_FMSY), type="l")
 cbind(Mod1@opt, Mod2@opt,Mod3@opt)   
