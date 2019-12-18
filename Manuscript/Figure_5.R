@@ -98,12 +98,15 @@ GenerateData <- function(Stock=1, Years=-10, CobCV=0.1, IobCV=0.1,
   CatchDat <- TSData$Catch * Cobs
   IndexDat <- TSData$Index * Iobs
   
-  AllYears <- 1:length(annualF)
-  NAYears <- 1:(length(annualF) + Years)
- 
-  IndexDat[NAYears] <- NA
-  CAL[NAYears,] <- NA
-  CAA[NAYears,] <- NA
+  if (!is.na(Years)) {
+    AllYears <- 1:length(annualF)
+    NAYears <- 1:(length(annualF) + Years)
+    
+    IndexDat[NAYears] <- NA
+    CAL[NAYears,] <- NA
+    CAA[NAYears,] <- NA 
+  }
+
   
   # TO DO - Add Obs Error 
   Data <- new("Data")
