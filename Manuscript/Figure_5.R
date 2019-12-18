@@ -1,4 +1,4 @@
-GenerateData <- function(Stock=1, Years=-10, CobCV=0.1, IobCV=0.1,
+GenerateData <- function(Stock=1, DatYears=10, CobCV=0.1, IobCV=0.1,
                          LH_CV=0.05,
                          LengthSampSize=250,
                          AgeSampSize=250,
@@ -70,10 +70,9 @@ GenerateData <- function(Stock=1, Years=-10, CobCV=0.1, IobCV=0.1,
   VAge_Comp <- CAA_DF %>% tidyr::pivot_wider(names_from='Yr',
                                              values_from="CAA")
   
-  AgeSamps <- sapply(2:length(annualF), function(i) 
+  AgeSamps <- sapply(1:length(annualF), function(i) 
     rmultinom(n=1, size=AgeSampSize, VAge_Comp[[i+1]]))
-  
-  AgeSamps <- cbind(rep(0, max(DF$Age)), AgeSamps)
+
   CAA <- t(AgeSamps)
   
   # Catch-at-length
@@ -100,7 +99,7 @@ GenerateData <- function(Stock=1, Years=-10, CobCV=0.1, IobCV=0.1,
   
   if (!is.na(Years)) {
     AllYears <- 1:length(annualF)
-    NAYears <- 1:(length(annualF) + Years)
+    NAYears <- 1:(length(annualF) - DatYears)
     
     IndexDat[NAYears] <- NA
     CAL[NAYears,] <- NA
@@ -108,7 +107,6 @@ GenerateData <- function(Stock=1, Years=-10, CobCV=0.1, IobCV=0.1,
   }
 
   
-  # TO DO - Add Obs Error 
   Data <- new("Data")
   Data@CAL_bins <- SimPop$LenBins
   Data@CAL_mids <- SimPop$LenMids
