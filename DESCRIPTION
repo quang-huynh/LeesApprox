@@ -1,4 +1,4 @@
-Package: LeesApprox
+Package: LeesApproxTMB
 Type: Package
 Title: What the Package Does (Title Case)
 Version: 0.1.0
@@ -7,10 +7,12 @@ Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
-Imports:
-    dplyr
+Depends: MSEtool
+Imports: TMB
 Encoding: UTF-8
 LazyData: true
-LinkingTo: Rcpp
-RoxygenNote: 6.1.1
+LinkingTo: Rcpp, TMB, RcppEigen
+RoxygenNote: 7.0.2
 Roxygen: list(markdown = TRUE)
+NeedsCompilation: yes
+Packaged: 2019-08-14 21:48:41 UTC; qhuynh
