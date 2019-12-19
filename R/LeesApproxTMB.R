@@ -491,8 +491,6 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
                     dependencies = dependencies)
 
   if(Assessment@conv) {
-    ref_pt <- SCA_GTG_MSY_calc(report, info$data)
-    report <- c(report, ref_pt)
 
     if(integrate) {
       if(!all(is.na(est_early_rec_dev))) SE_Early <- sqrt(SD$diag.cov.random[names(SD$par.random) == "log_early_rec_dev"])
@@ -517,20 +515,24 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
       SE_Dev <- SE_Dev[-c(1:(first_non_zero - 1))]
       SE_Dev[is.na(SE_Dev)] <- 0
     }
-
-    Assessment@FMSY <- report$FMSY
-    Assessment@MSY <- report$MSY
-    Assessment@BMSY <- report$BMSY
-    Assessment@SSBMSY <- report$EMSY
-    Assessment@VBMSY <- report$VBMSY
-    Assessment@F_FMSY <- structure(report$F/report$FMSY, names = Year)
-    Assessment@B_BMSY <- structure(report$B/report$BMSY, names = Yearplusone)
-    Assessment@SSB_SSBMSY <- structure(report$E/report$EMSY, names = Yearplusone)
-    Assessment@VB_VBMSY <- structure(report$VB/report$VBMSY, names = Yearplusone)
+    
     Assessment@Dev <- Dev_out
     Assessment@SE_Dev <- SE_Dev
-    Assessment@TMB_report <- report
   }
+  
+  
+  ref_pt <- SCA_GTG_MSY_calc(report, info$data)
+  report <- c(report, ref_pt)
+  Assessment@FMSY <- report$FMSY
+  Assessment@MSY <- report$MSY
+  Assessment@BMSY <- report$BMSY
+  Assessment@SSBMSY <- report$EMSY
+  Assessment@VBMSY <- report$VBMSY
+  Assessment@F_FMSY <- structure(report$F/report$FMSY, names = Year)
+  Assessment@B_BMSY <- structure(report$B/report$BMSY, names = Yearplusone)
+  Assessment@SSB_SSBMSY <- structure(report$E/report$EMSY, names = Yearplusone)
+  Assessment@VB_VBMSY <- structure(report$VB/report$VBMSY, names = Yearplusone)
+  Assessment@TMB_report <- report
   return(Assessment)
 }
 class(SCA_GTG) <- "Assess"

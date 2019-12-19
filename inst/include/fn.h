@@ -130,6 +130,8 @@ vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr) {
     Type hi = pow(2,-((Lengths(i) - LFS)/sr*(Lengths(i)-LFS)/sr));
     sel(i) = CppAD::CondExpLe(Lengths(i), LFS, lo, hi);
   }
+  Type sel_max = max(sel);
+  sel /= sel_max;
   return sel;
 }
 
