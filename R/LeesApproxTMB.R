@@ -445,7 +445,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   report$VB0 <- NA
 
   if(rescale != 1) {
-    vars_div <- c("B", "E", "CAApred", "CALpred", "CN", "Cpred", "N", "VB", "R", "R_early", "VB0", "R0", "B0", "E0", "N0")
+    vars_div <- c("B", "E", "CAApred", "CALpred", "CN", "Cpred", "N", "VB", "R", "R_early", "R_eq", "VB0", "R0", "B0", "E0", "N0")
     vars_mult <- "Brec"
     var_trans <- c("R0", "q")
     fun_trans <- c("/", "*")
