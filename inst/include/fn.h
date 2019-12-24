@@ -153,7 +153,7 @@ matrix<Type> LeesApp_fn(vector<Type> F, Type F_eq, vector<Type> rdist, vector<Ty
   probGTG.row(0) = rdist;
 
   for (int a=1; a<maxage; a++) {
-    int yr_st = y-a-1;
+    int yr_st = y-a;
     for(int g=0; g<ngtg; g++) {
       Type Zs = 0;
       for (int a2=0; a2<a; a2++) {
