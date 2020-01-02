@@ -111,7 +111,7 @@ lines(info$data$LenMids, TMB_report$Select_at_length, typ = 'o')
 ```
 
 ```{r, fig.cap="Annual selectivity at age."}
-plot_composition(info$Year, Selectivity, plot_type = "annual", ages = 1:info$data$max_age, annual_yscale = "raw", annual_ylab = "Selectivity")
+plot_composition(info$Year, Selectivity, plot_type = "annual", ages = 1:info$data$max_age, annual_yscale = "raw", annual_ylab = "Selectivity", N = NULL)
 ```
 
 ```{r, fig.cap="Observed (black) and predicted (red) index."}

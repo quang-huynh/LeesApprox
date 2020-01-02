@@ -196,7 +196,7 @@
     } else {
       R_early(a-1) = R_eq;
       if(!R_IsNA(asDouble(est_early_rec_dev(a-1)))) R_early(a-1) *= exp(log_early_rec_dev(a-1) - 0.5 * pow(tau, 2));
-      N(0,a) = R_early(a-1) * NPR_equilibrium.row(a-1).sum();
+      N(0,a) = R_early(a-1) * NPR_equilibrium.row(a).sum();
     }
 
     for(int g=0;g<ngtg;g++) {
@@ -266,24 +266,15 @@
   for(int y=0;y<n_y;y++) {
     if(!R_IsNA(asDouble(I_hist(y)))) nll_comp(0) -= dnorm(log(I_hist(y)), log(Ipred(y)), sigma, true);
     if(C_hist(y) > 0) {
-      if(!R_IsNA(asDouble(CAA_n(y)))) {
-        vector<Type> loglike_CAAobs(max_age);
-        vector<Type> loglike_CAApred(max_age);
-        loglike_CAApred = CAApred.row(y)/CN(y);
-        loglike_CAAobs = CAA_n(y) * CAA_hist.row(y);
-        //for(int a=0;a<max_age;a++) loglike_CAAobs(a) = CppAD::CondExpLt(CAA_hist(y,a), Type(1e-8), Type(1e-8), CAA_hist(y,a));
-        //loglike_CAAobs *= CAA_n(y);
+      if(!R_IsNA(asDouble(CAA_n(y))) && CAA_n(y) > 0) {
+        vector<Type> loglike_CAAobs = CAA_n(y) * CAA_hist.row(y);
+        vector<Type> loglike_CAApred = CAApred.row(y)/CN(y);
         nll_comp(1) -= dmultinom(loglike_CAAobs, loglike_CAApred, true);
       }
 
-      vector<Type> loglike_CALobs(Nbins);
-      vector<Type> loglike_CALpred(Nbins);
-      loglike_CALpred = CALpred.row(y)/CN(y);
-      if(!R_IsNA(asDouble(CAL_n(y)))) {
-        loglike_CALpred = CALpred.row(y)/CN(y);
-        loglike_CALobs = CAL_n(y) * CAL_hist.row(y);
-        //for(int len=0;len<Nbins;len++) loglike_CALobs(len) = CppAD::CondExpLt(CAL_hist(y,len), Type(1e-8), Type(1e-8), CAL_hist(y,len));
-        //loglike_CALobs *= CAL_n(y);
+      if(!R_IsNA(asDouble(CAL_n(y))) && CAL_n(y) > 0) {
+        vector<Type> loglike_CALobs = CAL_n(y) * CAL_hist.row(y);
+        vector<Type> loglike_CALpred = CALpred.row(y)/CN(y);
         nll_comp(2) -= dmultinom(loglike_CALobs, loglike_CALpred, true);
       }
       nll_comp(3) -= dnorm(log(C_hist(y)), log(Cpred(y)), omega, true);
@@ -317,6 +308,10 @@
   REPORT(B0);
   REPORT(N0);
   REPORT(E0);
+  
+  REPORT(NPR_equilibrium);
+  REPORT(EPR_eq);
+  REPORT(R_eq);
 
   REPORT(vul_par);
   REPORT(L5);

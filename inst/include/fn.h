@@ -153,18 +153,17 @@ matrix<Type> LeesApp_fn(vector<Type> F, Type F_eq, vector<Type> rdist, vector<Ty
   probGTG.row(0) = rdist;
 
   for (int a=1; a<maxage; a++) {
-    int yr_st = y-a-1;
-    vector<Type> Zs(ngtg);
-    Zs.setZero();
+    int yr_st = y-a;
     for(int g=0; g<ngtg; g++) {
+      Type Zs = 0;
       for (int a2=0; a2<a; a2++) {
         if(yr_st + a2 < 0) {
-          Zs(g) += M(a2) + F_eq * SAA(a2,g);
+          Zs += M(a2) + F_eq * SAA(a2,g);
         } else {
-          Zs(g) += M(a2) + F(yr_st + a2) * SAA(a2,g);
+          Zs += M(a2) + F(yr_st + a2) * SAA(a2,g);
         }
       }
-      Ns(a,g) = Ns(0,g) * exp(-Zs(g));
+      Ns(a,g) = Ns(0,g) * exp(-Zs);
     }
     probGTG.row(a) = Ns.row(a);
     probGTG.row(a) /= Ns.row(a).sum();
@@ -189,11 +188,10 @@ matrix<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type>
   Ns.row(0) = rdist;
 
   for (int a=1; a<maxage; a++) {
-    vector<Type> Zs(ngtg);
-    Zs.setZero();
     for(int g=0; g<ngtg; g++) {
-      for (int a2=0; a2<a; a2++) Zs(g) += M(a2) + F * SAA(a2,g);
-      Ns(a,g) = Ns(0,g) * exp(-Zs(g));
+      Type Zs = 0;
+      for (int a2=0; a2<a; a2++) Zs += M(a2) + F * SAA(a2,g);
+      Ns(a,g) = Ns(0,g) * exp(-Zs);
     }
   }
 
