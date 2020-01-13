@@ -312,7 +312,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
                LAA = LAA, xout = xout, distGTG = distGTG, rdist = rdist,
                interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
                integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]],
-               use_LeesEffect = as.integer(use_LeesEffect))
+               use_LeesEffect = as.integer(use_LeesEffect), yind_F = as.integer(0.5 * n_y))
   data$CAA_hist[data$CAA_hist < 1e-8] <- 1e-8
   data$CAL_hist[data$CAL_hist < 1e-8] <- 1e-8
 
@@ -381,7 +381,11 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
       }
     }
   }
-  if(is.null(params$logF)) params$logF <- rep(log(0.1), n_y)
+  if(is.null(params$logF)) {
+    logFstart <- numeric(n_y)
+    logFstart[data$yind_F + 1] <- 0.75 * mean(data$M)
+    params$logF <- logFstart
+  }
 
   if(is.null(params$log_sigma)) {
     sigmaI <- max(0.01, sdconv(1, Data@CV_Ind[x]), na.rm = TRUE)
@@ -553,7 +557,7 @@ SCA_GTG_MSY_calc <- function(report, dat) {
   map$Arec <- map$Brec <- factor(NA)
 
   obj <- MakeADFun(TMB_data, TMB_params, map = map, DLL = "LeesApproxTMB", silent = TRUE)
-  opt <- optimize(obj$fn, c(-6, 6))
+  opt <- optimize(obj$fn, log(c(1e-8, 3)))
   report <- obj$report(obj$env$last.par.best)
 
   FMSY <- report$F

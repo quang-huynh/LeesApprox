@@ -46,6 +46,7 @@
   DATA_IVECTOR(integ_ind);
 
   DATA_INTEGER(use_LeesEffect);
+  DATA_INTEGER(yind_F);
 
   PARAMETER(log_R0);
   PARAMETER(transformed_h);
@@ -207,6 +208,8 @@
   }
 
   // Loop over all other years
+  F(yind_F) = exp(logF(yind_F));
+  for(int y=0;y<n_y;y++) if(y != yind_F) F(y) = F(yind_F) * exp(logF(y));
   for(int y=0;y<n_y;y++) {
     if(SR_type == "BH") {
       R(y+1) = BH_SR(E(y), h, R0, E0);
@@ -218,8 +221,8 @@
       if(!R_IsNA(asDouble(est_rec_dev(y)))) R(y+1) *= exp(log_rec_dev(y+1) - 0.5 * pow(tau, 2));
     }
     N(y+1,0) = R(y+1);
-
-    F(y) = CppAD::CondExpLt(3 - exp(logF(y)), Type(0), 3 - posfun(3 - exp(logF(y)), Type(0), penalty), exp(logF(y)));
+    
+    //F(y) = CppAD::CondExpLt(3 - exp(logF(y)), Type(0), 3 - posfun(3 - exp(logF(y)), Type(0), penalty), exp(logF(y)));
 
     if(use_LeesEffect) {
       probLA(y+1) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
