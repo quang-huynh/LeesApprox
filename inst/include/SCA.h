@@ -88,10 +88,10 @@
   Type sr = (Linf - LFS) / pow(-log2(Vmaxlen), 0.5);
 
   vector<Type> Select_at_length(Nbins);
-  Select_at_length = s_dnormal(LenMids, LFS, sl, sr);
+  Select_at_length = s_dnormal(LenMids, LFS, sl, sr, Vmaxlen);
 
   matrix<Type> SAA(max_age, ngtg); // selectivity-at-age by GTG
-  SAA = s_dnormal(LAA, LFS, sl, sr);
+  SAA = s_dnormal(LAA, LFS, sl, sr, Vmaxlen);
 
   ////// Equilibrium reference points and per-recruit quantities
   matrix<Type> NPR_virgin(max_age, ngtg);

@@ -110,25 +110,27 @@ matrix<Type> calcprob(matrix<Type> LAA, matrix<Type> Ns, matrix<Type> xout, vect
 
 //s_dnormal
 template <class Type>
-matrix<Type> s_dnormal(matrix<Type> Lengths, Type LFS, Type sl, Type sr) {
+matrix<Type> s_dnormal(matrix<Type> Lengths, Type LFS, Type sl, Type sr, Type Vmaxlen) {
   matrix<Type> sel(Lengths.rows(), Lengths.cols());
   for(int i=0;i<Lengths.rows();i++) {
     for(int g=0;g<Lengths.cols();g++) {
       Type lo = pow(2,-((Lengths(i,g) - LFS)/sl*(Lengths(i,g)-LFS)/sl));
       Type hi = pow(2,-((Lengths(i,g) - LFS)/sr*(Lengths(i,g)-LFS)/sr));
-      sel(i,g) = CppAD::CondExpLe(Lengths(i,g), LFS, lo, hi);
+      Type hi2 = CppAD::CondExpGe(Vmaxlen, Type(0.99), Type(1), hi);
+      sel(i,g) = CppAD::CondExpLe(Lengths(i,g), LFS, lo, hi2);
     }
   }
   return sel;
 }
 
 template <class Type>
-vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr) {
+vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr, Type Vmaxlen) {
   vector<Type> sel(Lengths.size());
   for(int i=0;i<Lengths.size();i++) {
     Type lo = pow(2,-((Lengths(i) - LFS)/sl*(Lengths(i)-LFS)/sl));
     Type hi = pow(2,-((Lengths(i) - LFS)/sr*(Lengths(i)-LFS)/sr));
-    sel(i) = CppAD::CondExpLe(Lengths(i), LFS, lo, hi);
+    Type hi2 = CppAD::CondExpGe(Vmaxlen, Type(0.99), Type(1), hi);
+    sel(i) = CppAD::CondExpLe(Lengths(i), LFS, lo, hi2);
   }
   Type sel_max = max(sel);
   sel /= sel_max;
