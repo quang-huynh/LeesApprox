@@ -335,7 +335,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
         if(length(start$vul_par) < 2) stop("Two parameters needed for start$vul_par with logistic vulnerability (see help).")
         if(start$vul_par[1] <= start$vul_par[2]) stop("start$vul_par[1] needs to be greater than start$vul_par[2] (see help).")
 
-        params$vul_par <- c(logit(start$vul_par[1]/Linf/0.9), log(start$vul_par[1] - start$vul_par[2]), 5)
+        params$vul_par <- c(logit(start$vul_par[1]/Linf/0.9), log(start$vul_par[1] - start$vul_par[2]), 10)
       }
       if(vulnerability == "dome") {
         if(length(start$vul_par) < 3) stop("Three parameters needed for start$vul_par with dome vulnerability (see help).")
@@ -370,15 +370,18 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   if(is.null(params$vul_par)) {
     if((is.na(Data@LFC[x]) && is.na(Data@LFS[x])) || (Data@LFC[x] > Linf) || (Data@LFS[x] > Linf)) {
       CAL_mode <- which.max(colSums(CAL_hist, na.rm = TRUE))
-      if(vulnerability == "logistic") params$vul_par <- c(logit(CAL_mids[CAL_mode]/Linf/0.9), log(1), 10)
-      if(vulnerability == "dome") {
-        params$vul_par <- c(logit(CAL_mids[CAL_mode]/Linf/0.9), log(1), logit(0.5))
+      if(all(is.na(CAL_hist))) {
+        CAL_mode <- La[which.max(colSums(CAA_hist, na.rm = TRUE))] 
       }
+      LFS <- CAL_mids[CAL_mode]
+      L5 <- 0.4 * LFS
     } else {
-      if(vulnerability == "logistic") params$vul_par <- c(logit(Data@LFS[x]/Linf/0.9), log(Data@LFS[x] - Data@LFC[x]), 5)
-      if(vulnerability == "dome") {
-        params$vul_par <- c(logit(Data@LFS[x]/Linf/0.9), log(Data@LFS[x] - Data@LFC[x]), logit(0.5))
-      }
+      LFS <- Data@LFS[x]
+      L5 <- Data@LFC[x]
+    }
+    if(vulnerability == "logistic") params$vul_par <- c(logit(LFS/Linf/0.9), log(LFS - L5), 10)
+    if(vulnerability == "dome") {
+      params$vul_par <- c(logit(LFS/Linf/0.9), log(LFS - L5), logit(0.5))
     }
   }
   if(is.null(params$logF)) {

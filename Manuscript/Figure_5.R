@@ -130,6 +130,9 @@ GenerateData <- function(Stock=1, DatYears=10, CobCV=0.1, IobCV=0.1,
   Data@steep <- steepness
   Data@sigmaR <- sigmaR
   
+  Data@LFS <- LFS
+  Data@LFC <- L5
+  
   Data@AddInd <- array(NA, dim=c(1,1,1))
   Data@CV_AddInd <- array(NA, dim=c(1,1,1))
   Data@AddIndV <- array(NA, dim=c(1,1,1))
