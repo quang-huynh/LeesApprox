@@ -38,41 +38,59 @@ CAL_multiplier <- 0
 ngtg_assess <- 11
 
 # with GTG approx
-Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
+Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
                 CAA_multiplier=CAA_multiplier,
-                CAL_multiplier= CAL_multiplier, 
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
                 control=control, 
                 fix_sigma =fix_sigma)
 # without GTG approx
-Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, 
+Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
                 use_LeesEffect = FALSE,
                 CAA_multiplier=CAA_multiplier,
-                CAL_multiplier= CAL_multiplier,
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
                 control=control,
                 fix_sigma =fix_sigma)
 # MSEtool::SCA
 Mod3 <- SCA(Data=Data,
-            CAA_multiplier=CAA_multiplier,
-            CAL_multiplier= CAL_multiplier,
+            CAA_multiplier=CAA_multiplier, vulnerability = vulnerability,
+            CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
             control=control,
             fix_sigma=fix_sigma)
+
 
 data.frame(Mod=c('Mod1', 'Mod2', 'Mod3'),
            conv=c(Mod1@conv,Mod2@conv, Mod3@conv))
          
-
+# Maximum gradient
 sapply(c(Mod1, Mod2, Mod3), function(x) max(abs(x@SD$gradient.fixed)))
 
+# Any zero gradient at starting values
+Mod1@obj$gr(Mod1@obj$par)
+Mod2@obj$gr(Mod2@obj$par)
+Mod3@obj$gr(Mod3@obj$par)
 
+# Any zero gradient at final parameter values
+Mod1@obj$gr(Mod1@opt$par)
+Mod2@obj$gr(Mod2@opt$par)
+Mod3@obj$gr(Mod3@opt$par)
+
+# FMSY
 Mod1@FMSY  
 Mod2@FMSY
 Mod3@FMSY
 
-Mod1@NLL  
-Mod2@NLL
+# Negative log-likelihood components
+Mod1@NLL[-4] # The 4th element is for length comps which should be zero. Remove to align with Mod3 vector
+Mod2@NLL[-4]
 Mod3@NLL
 
+# Correlation between R0, and the 2 selectivity parameters
+(Mod1@SD$cov.fixed %>% cov2cor() %>% round(3))[1:3, 1:3]
+(Mod2@SD$cov.fixed %>% cov2cor() %>% round(3))[1:3, 1:3]
+(Mod3@SD$cov.fixed %>% cov2cor() %>% round(3))[1:3, 1:3]
 
+
+# F/FMSY
 matplot(cbind(Mod1@F_FMSY, Mod2@F_FMSY, Mod3@F_FMSY), type="l")
 cbind(Mod1@opt, Mod2@opt,Mod3@opt)   
 

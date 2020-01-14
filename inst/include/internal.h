@@ -35,11 +35,11 @@
   Type sr = (Linf - LFS) / pow(-log2(Vmaxlen), 0.5);
 
   matrix<Type> SAA(maxage, ngtg); // selectivity-at-age by GTG
-  SAA = s_dnormal(LAA, LFS, sl, sr);
+  SAA = s_dnormal(LAA, LFS, sl, sr, Vmaxlen);
 
   // calculate selectivity-at-length
   vector<Type> Select_at_length(LenMids.size());
-  Select_at_length = s_dnormal(LenMids, LFS, sl, sr);
+  Select_at_length = s_dnormal(LenMids, LFS, sl, sr, Vmaxlen);
 
   // loop over ages and calculate N per recruit for each age class
   matrix<Type> Ns(maxage, ngtg);
