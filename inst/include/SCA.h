@@ -34,6 +34,7 @@
   DATA_SCALAR(Linf);      // Linf
 
   DATA_MATRIX(LAA);       // Length-at-age-and-GTG at the beginning of the year
+  DATA_SCALAR(min_LAA);   // Smallest LAA
   DATA_MATRIX(xout);      // Length bins and Length-at-age sorted by row
 
   DATA_VECTOR(distGTG);
@@ -81,7 +82,7 @@
   vector<vector<int> > integ_index = split(integ_ind, integ_fac);
 
   // Calculate selectivity-at-length
-  Type LFS = invlogit(vul_par(0)) * 0.9 * Linf;
+  Type LFS = invlogit(vul_par(0)) * (0.9 * Linf - min_LAA) + min_LAA;
   Type L5 = LFS - exp(vul_par(1));
   Type Vmaxlen = invlogit(vul_par(2));
 
