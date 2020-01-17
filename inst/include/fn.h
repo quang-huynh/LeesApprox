@@ -110,20 +110,6 @@ matrix<Type> calcprob(matrix<Type> LAA, matrix<Type> Ns, matrix<Type> xout, vect
 
 //s_dnormal
 template <class Type>
-matrix<Type> s_dnormal(matrix<Type> Lengths, Type LFS, Type sl, Type sr, Type Vmaxlen) {
-  matrix<Type> sel(Lengths.rows(), Lengths.cols());
-  for(int i=0;i<Lengths.rows();i++) {
-    for(int g=0;g<Lengths.cols();g++) {
-      Type lo = pow(2,-((Lengths(i,g) - LFS)/sl*(Lengths(i,g)-LFS)/sl));
-      Type hi = pow(2,-((Lengths(i,g) - LFS)/sr*(Lengths(i,g)-LFS)/sr));
-      Type hi2 = CppAD::CondExpGe(Vmaxlen, Type(0.99), Type(1), hi);
-      sel(i,g) = CppAD::CondExpLe(Lengths(i,g), LFS, lo, hi2);
-    }
-  }
-  return sel;
-}
-
-template <class Type>
 vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr, Type Vmaxlen) {
   vector<Type> sel(Lengths.size());
   for(int i=0;i<Lengths.size();i++) {
@@ -137,6 +123,15 @@ vector<Type> s_dnormal(vector<Type> Lengths, Type LFS, Type sl, Type sr, Type Vm
   return sel;
 }
 
+template <class Type>
+matrix<Type> s_dnormal(matrix<Type> Lengths, Type LFS, Type sl, Type sr, Type Vmaxlen) {
+  matrix<Type> sel(Lengths.rows(), Lengths.cols());
+  for(int i=0;i<Lengths.rows();i++) {
+    vector<Type> L2 = Lengths.row(i);
+    sel.row(i) = s_dnormal(L2, LFS, sl, sr, Vmaxlen);
+  }
+  return sel;
+}
 
 // F     - vector of length n_y
 // rdist - vector of length ngtg
