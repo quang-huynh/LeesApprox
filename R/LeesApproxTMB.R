@@ -378,7 +378,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
       L5 <- 0.4 * LFS
     } else {
       LFS <- Data@LFS[x]
-      L5 <- Data@LFC[x]
+      L5 <- min(0.4 * LFS, Data@LFC[x])
     }
     LFS <- max(LFS, min(LAA))
     if(vulnerability == "logistic") params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5), 10)
@@ -388,7 +388,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   }
   if(is.null(params$logF)) {
     logFstart <- numeric(n_y)
-    logFstart[data$yind_F + 1] <- 0.75 * mean(data$M)
+    logFstart[data$yind_F + 1] <- log(0.75 * mean(data$M))
     params$logF <- logFstart
   }
 
