@@ -273,13 +273,13 @@
       if(!R_IsNA(asDouble(CAA_n(y))) && CAA_n(y) > 0) {
         vector<Type> loglike_CAAobs = CAA_n(y) * CAA_hist.row(y);
         vector<Type> loglike_CAApred = CAApred.row(y)/CN(y);
-        nll_comp(1) -= dmultinom(loglike_CAAobs, loglike_CAApred, true);
+        nll_comp(1) -= dmultinom_robust(loglike_CAAobs, loglike_CAApred, true);
       }
 
       if(!R_IsNA(asDouble(CAL_n(y))) && CAL_n(y) > 0) {
         vector<Type> loglike_CALobs = CAL_n(y) * CAL_hist.row(y);
         vector<Type> loglike_CALpred = CALpred.row(y)/CN(y);
-        nll_comp(2) -= dmultinom(loglike_CALobs, loglike_CALpred, true);
+        nll_comp(2) -= dmultinom_robust(loglike_CALobs, loglike_CALpred, true);
       }
       nll_comp(3) -= dnorm(log(C_hist(y)), log(Cpred(y)), omega, true);
     }
