@@ -34,6 +34,7 @@
   DATA_SCALAR(Linf);      // Linf
 
   DATA_MATRIX(LAA);       // Length-at-age-and-GTG at the beginning of the year
+  DATA_SCALAR(min_LAA);   // Smallest LAA
   DATA_MATRIX(xout);      // Length bins and Length-at-age sorted by row
 
   DATA_VECTOR(distGTG);
@@ -81,7 +82,7 @@
   vector<vector<int> > integ_index = split(integ_ind, integ_fac);
 
   // Calculate selectivity-at-length
-  Type LFS = invlogit(vul_par(0)) * 0.9 * Linf;
+  Type LFS = invlogit(vul_par(0)) * (0.9 * Linf - min_LAA) + min_LAA;
   Type L5 = LFS - exp(vul_par(1));
   Type Vmaxlen = invlogit(vul_par(2));
 
@@ -218,7 +219,7 @@
     }
 
     if(y<n_y-1) {
-      if(!R_IsNA(asDouble(est_rec_dev(y)))) R(y+1) *= exp(log_rec_dev(y+1) - 0.5 * pow(tau, 2));
+      if(!R_IsNA(asDouble(est_rec_dev(y+1)))) R(y+1) *= exp(log_rec_dev(y+1) - 0.5 * pow(tau, 2));
     }
     N(y+1,0) = R(y+1);
     
@@ -272,13 +273,13 @@
       if(!R_IsNA(asDouble(CAA_n(y))) && CAA_n(y) > 0) {
         vector<Type> loglike_CAAobs = CAA_n(y) * CAA_hist.row(y);
         vector<Type> loglike_CAApred = CAApred.row(y)/CN(y);
-        nll_comp(1) -= dmultinom(loglike_CAAobs, loglike_CAApred, true);
+        nll_comp(1) -= dmultinom_robust(loglike_CAAobs, loglike_CAApred, true);
       }
 
       if(!R_IsNA(asDouble(CAL_n(y))) && CAL_n(y) > 0) {
         vector<Type> loglike_CALobs = CAL_n(y) * CAL_hist.row(y);
         vector<Type> loglike_CALpred = CALpred.row(y)/CN(y);
-        nll_comp(2) -= dmultinom(loglike_CALobs, loglike_CALpred, true);
+        nll_comp(2) -= dmultinom_robust(loglike_CALobs, loglike_CALpred, true);
       }
       nll_comp(3) -= dnorm(log(C_hist(y)), log(Cpred(y)), omega, true);
     }

@@ -309,7 +309,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
                WAA = a * LAA^b, mat = mat_age, I_type = I_type,
                SR_type = SR, est_early_rec_dev = est_early_rec_dev, est_rec_dev = est_rec_dev,
                ngtg = ngtg, Nbins = Nbins, LenBins = CAL_bins, LenMids = CAL_mids, Linf = Linf,
-               LAA = LAA, xout = xout, distGTG = distGTG, rdist = rdist,
+               LAA = LAA, min_LAA = min(LAA), xout = xout, distGTG = distGTG, rdist = rdist,
                interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
                integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]],
                use_LeesEffect = as.integer(use_LeesEffect), yind_F = as.integer(0.5 * n_y))
@@ -331,6 +331,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
     if(!is.null(start$F_equilibrium) && is.numeric(start$F_equilibrium)) params$F_equilibrium <- start$F_equilibrium
     if(!is.null(start$vul_par) && is.numeric(start$vul_par)) {
       if(start$vul_par[1] > 0.9 * Linf) stop("start$vul_par[1] needs to be less than 0.9 * Data@Linf.")
+      if(start$vul_par[1] < min(LAA)) stop("start$vul_par[1] needs to be greater than the smallest GTG: ", min(LAA))
       if(vulnerability == "logistic") {
         if(length(start$vul_par) < 2) stop("Two parameters needed for start$vul_par with logistic vulnerability (see help).")
         if(start$vul_par[1] <= start$vul_par[2]) stop("start$vul_par[1] needs to be greater than start$vul_par[2] (see help).")
@@ -370,23 +371,24 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   if(is.null(params$vul_par)) {
     if((is.na(Data@LFC[x]) && is.na(Data@LFS[x])) || (Data@LFC[x] > Linf) || (Data@LFS[x] > Linf)) {
       CAL_mode <- which.max(colSums(CAL_hist, na.rm = TRUE))
-      if(all(is.na(CAL_hist))) {
+      if(is.character(CAL_mode) || all(is.na(CAL_hist))) {
         CAL_mode <- La[which.max(colSums(CAA_hist, na.rm = TRUE))] 
       }
       LFS <- CAL_mids[CAL_mode]
       L5 <- 0.4 * LFS
     } else {
       LFS <- Data@LFS[x]
-      L5 <- Data@LFC[x]
+      L5 <- min(0.4 * LFS, Data@LFC[x])
     }
-    if(vulnerability == "logistic") params$vul_par <- c(logit(LFS/Linf/0.9), log(LFS - L5), 10)
+    LFS <- max(LFS, min(LAA))
+    if(vulnerability == "logistic") params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5), 10)
     if(vulnerability == "dome") {
-      params$vul_par <- c(logit(LFS/Linf/0.9), log(LFS - L5), logit(0.5))
+      params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5), logit(0.5))
     }
   }
   if(is.null(params$logF)) {
     logFstart <- numeric(n_y)
-    logFstart[data$yind_F + 1] <- 0.75 * mean(data$M)
+    logFstart[data$yind_F + 1] <- log(0.75 * mean(data$M))
     params$logF <- logFstart
   }
 
@@ -472,7 +474,7 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   nll_report <- ifelse(is.character(opt), ifelse(integrate, NA, report$nll), opt$objective)
   Assessment <- new("Assessment", Model = "SCA_GTG", Name = Data@Name, conv = !is.character(SD) && SD$pdHess,
                     B0 = report$B0, R0 = report$R0, N0 = report$N0,
-                    SSB0 = report$E0, VB0 = report$VB0,
+                    SSB0 = report$E0, #VB0 = report$VB0,
                     h = report$h, FMort = structure(report$F, names = Year),
                     B = structure(report$B, names = Yearplusone),
                     B_B0 = structure(report$B/report$B0, names = Yearplusone),
