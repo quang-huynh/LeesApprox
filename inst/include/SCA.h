@@ -95,8 +95,7 @@
  
   // matrix<Type> SAA(max_age, ngtg); // selectivity-at-age by GTG
   // SAA = s_dnormal(LAA, LFS, sl, sr, Vmaxlen);
-  vector<Type> SAA(max_age);
-  SAA =  ; // selectivity-at-age vector
+
 
   ////// Equilibrium reference points and per-recruit quantities
   // matrix<Type> NPR_virgin(max_age, ngtg);
