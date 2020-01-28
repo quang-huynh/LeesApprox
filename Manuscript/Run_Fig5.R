@@ -87,9 +87,26 @@ out %>% group_by(Stock, Mod) %>% summarize(p.conv=mean(conv),
                                            mean.F_FMSY=mean(estF/FMSY, na.rm=TRUE),
                                            sd.F_FMSY=sd(estF/FMSY, na.rm=TRUE))
 
-out %>% group_by(Stock, Mod) %>% summarize(p.conv=mean(conv),
-                                           mean.F_FMSY=mean(estF/FMSY, na.rm=TRUE),
-                                           sd.F_FMSY=sd(estF/FMSY, na.rm=TRUE))
+# with GTG approx
+Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
+                CAA_multiplier=CAA_multiplier, rescale = 1,
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                control=control, 
+                fix_sigma =fix_sigma)
+# without GTG approx
+Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
+                use_LeesEffect = FALSE,
+                CAA_multiplier=CAA_multiplier, rescale = 1,
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                control=control,
+                fix_sigma =fix_sigma)
+# MSEtool::SCA
+Mod3 <- SCA(Data=Data,
+            CAA_multiplier=CAA_multiplier, vulnerability = vulnerability,
+            CAL_multiplier= CAL_multiplier, start = list(omega = 0.01), rescale = 1,
+            control=control,
+            fix_sigma=fix_sigma)
+
 
 
          
