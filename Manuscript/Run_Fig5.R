@@ -1,4 +1,5 @@
 # devtools::install_github('adrianhordyk/LeesApprox')
+# devtools::install_github('tcarruth/MSEtool')
 
 library(LeesApproxTMB)
 library(dplyr)
@@ -13,29 +14,78 @@ LengthSampSize <- 100
 AgeSampSize <- 100
 DatYears <- 10 # NA = data from all years, otherwise index, CAA and CAL data for last `DatYears` years
 
+Stock <- 1
+saveList <- list(); x <- 0
+chk <- function(x) ifelse(length(x)>0, x, NA)
+for (Stock in 1:3) {
+  for (i in 1:20) {
+    genData <- GenerateData(Stock=Stock, DatYears=DatYears, 
+                            CobCV=CVs, IobCV=CVs,
+                            LH_CV=LH_CV,
+                            LengthSampSize=LengthSampSize,
+                            AgeSampSize=AgeSampSize,
+                            Fmulti=1, nbins=30)
+    
+    annualF <- genData$annualF
+    Data <- genData$Data
+    LHpars <- genData$LHpars
+    
+    
+    vulnerability <- 'logistic' # 'dome'
+    fix_sigma <- TRUE 
+    
+    control <- list(iter.max = 5e+05, eval.max = 7e+05)
+    # Fit Assessment Models - Only CAA data 
+    CAA_multiplier <- 40
+    CAL_multiplier <- 0
+    ngtg_assess <- 11
+    
+    # with GTG approx
+    Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
+                    CAA_multiplier=CAA_multiplier,
+                    CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                    control=control, 
+                    fix_sigma =fix_sigma)
+    # without GTG approx
+    Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
+                    use_LeesEffect = FALSE,
+                    CAA_multiplier=CAA_multiplier,
+                    CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                    control=control,
+                    fix_sigma =fix_sigma)
+    # MSEtool::SCA
+    Mod3 <- SCA(Data=Data,
+                CAA_multiplier=CAA_multiplier, vulnerability = vulnerability,
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                control=control,
+                fix_sigma=fix_sigma)
+    
+    # FMSY
+    
+    FMSYs <- c(chk(Mod1@FMSY), chk(Mod2@FMSY), chk(Mod3@FMSY))
+    
+    estFs <- c(chk(Mod1@FMort[length(Mod1@FMort)]),
+               chk(Mod2@FMort[length(Mod1@FMort)]),
+               chk(Mod3@FMort[length(Mod1@FMort)]))
+    x <- x+1
+    saveList[[x]] <-  data.frame(Stock=Stock,
+                                 Mod=c('SCA_GTG', 'SCA_GTG_noApprox', 'MSEtool::SCA'),
+                                 conv=c(Mod1@conv,Mod2@conv, Mod3@conv),
+                                 FMSY=FMSYs,
+                                 estF=estFs,
+                                 trueF=annualF[length(annualF)])
+  }
+}
+out <- do.call('rbind', saveList)
+write.csv(out, 'trials.csv')
 
-Stock <- 2
+out %>% group_by(Stock, Mod) %>% summarize(p.conv=mean(conv),
+                                           mean.estF=mean(estF, na.rm=TRUE),
+                                           sd.estF=sd(estF, na.rm=TRUE))
 
-genData <- GenerateData(Stock=Stock, DatYears=DatYears, 
-                        CobCV=CVs, IobCV=CVs,
-                        LH_CV=LH_CV,
-                        LengthSampSize=LengthSampSize,
-                        AgeSampSize=AgeSampSize,
-                        Fmulti=1, nbins=30)
-
-annualF <- genData$annualF
-Data <- genData$Data
-LHpars <- genData$LHpars
-
-
-vulnerability <- 'logistic' # 'dome'
-fix_sigma <- TRUE 
-
-control <- list(iter.max = 5e+05, eval.max = 7e+05)
-# Fit Assessment Models - Only CAA data 
-CAA_multiplier <- 40
-CAL_multiplier <- 0
-ngtg_assess <- 11
+out %>% group_by(Stock, Mod) %>% summarize(p.conv=mean(conv),
+                                           mean.F_FMSY=mean(estF/FMSY, na.rm=TRUE),
+                                           sd.F_FMSY=sd(estF/FMSY, na.rm=TRUE))
 
 # with GTG approx
 Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
@@ -58,8 +108,7 @@ Mod3 <- SCA(Data=Data,
             fix_sigma=fix_sigma)
 
 
-data.frame(Mod=c('Mod1', 'Mod2', 'Mod3'),
-           conv=c(Mod1@conv,Mod2@conv, Mod3@conv))
+
          
 # Maximum gradient
 sapply(c(Mod1, Mod2, Mod3), function(x) max(abs(x@SD$gradient.fixed)))
@@ -74,10 +123,7 @@ Mod1@obj$gr(Mod1@opt$par)
 Mod2@obj$gr(Mod2@opt$par)
 Mod3@obj$gr(Mod3@opt$par)
 
-# FMSY
-Mod1@FMSY  
-Mod2@FMSY
-Mod3@FMSY
+
 
 # Negative log-likelihood components
 Mod1@NLL[-4] # The 4th element is for length comps which should be zero. Remove to align with Mod3 vector
