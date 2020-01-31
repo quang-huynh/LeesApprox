@@ -57,7 +57,7 @@
     vector<vector<int> > integ_index = split(integ_ind, integ_fac);
     
     // Update Weight_at_age and NPR
-    matrix<Type> NPR_GTG = LeesApp_fn(F, rdist, M, SAA, WAA, Weight_at_age, NPR, max_age, ngtg);
+    matrix<Type> NPR_GTG = LeesApp_fn(F, rdist, M, SAA, WAA, NPR, Weight_at_age, max_age, ngtg);
     matrix<Type> probLA = calcprob(LAA, NPR_GTG, xout, LenBins, max_age, ngtg, Nbins, interp_check, interp_check2,
                                    integ_check, integ_index);
     

@@ -568,14 +568,14 @@ SCA_GTG_MSY_calc <- function(report, dat) {
 
   obj <- MakeADFun(TMB_data, TMB_params, map = map, DLL = "LeesApproxTMB", silent = TRUE)
   opt <- optimize(obj$fn, log(c(1e-8, 3)))
-  report <- obj$report(obj$env$last.par.best)
+  reportMSY <- obj$report(obj$env$last.par.best)
 
-  FMSY <- report$F
-  MSY <- report$Yield
-  VBMSY <- report$VB
-  RMSY <- report$R
-  BMSY <- report$B
-  EMSY <- report$E
+  FMSY <- reportMSY$F
+  MSY <- reportMSY$Yield
+  VBMSY <- reportMSY$VB
+  RMSY <- reportMSY$R
+  BMSY <- reportMSY$B
+  EMSY <- reportMSY$E
 
   return(list(FMSY = FMSY, MSY = MSY, VBMSY = VBMSY, RMSY = RMSY, BMSY = BMSY, EMSY = EMSY))
 }
