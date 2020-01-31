@@ -17,7 +17,6 @@
   DATA_INTEGER(max_age);  // Maximum age (plus-group)
   DATA_VECTOR(M);         // Natural mortality at age
 
-  // DATA_MATRIX(WAA);       // Weight-at-age-and-GTG at the beginning of the year
   DATA_VECTOR(mat);       // Maturity-at-age at the beginning of the year
 
   DATA_STRING(I_type);    // String whether index surveys B, VB, or SSB
@@ -26,28 +25,36 @@
   DATA_VECTOR(est_early_rec_dev);
   DATA_VECTOR(est_rec_dev); // Indicator of whether rec_dev is estimated in model or fixed at zero
 
-  DATA_INTEGER(ngtg);     // Number of growth type groups
   DATA_INTEGER(Nbins);
   DATA_VECTOR(LenBins);   // Length bins
   DATA_VECTOR(LenMids);   // Mid of length bins
 
   DATA_SCALAR(Linf);      // Linf
-
-  // DATA_MATRIX(LAA);       // Length-at-age-and-GTG at the beginning of the year
-  DATA_SCALAR(min_LAA);   // Smallest LAA
-  DATA_MATRIX(xout);      // Length bins and Length-at-age sorted by row
-
+  DATA_SCALAR(min_LAA);   // Smallest LAA for selectivity
+  DATA_INTEGER(yind_F);
+  
+  DATA_INTEGER(use_LeesEffect);
+  
+  // Only used if use_LeesEffect = TRUE
+  DATA_INTEGER(ngtg);     // Number of growth type groups
   DATA_VECTOR(distGTG);
   DATA_VECTOR(rdist);
-
+  
+  DATA_MATRIX(WAA);       // Weight-at-age-and-GTG at the beginning of the year
+  DATA_MATRIX(LAA);       // Length-at-age-and-GTG at the beginning of the year
+  
+  DATA_MATRIX(xout);      // Length bins and Length-at-age sorted by row
   DATA_IMATRIX(interp_check);
   DATA_IMATRIX(interp_check2);
   DATA_IMATRIX(integ_check);
   DATA_IVECTOR(integ_fac);
   DATA_IVECTOR(integ_ind);
-
-  DATA_INTEGER(use_LeesEffect);
-  DATA_INTEGER(yind_F);
+  
+  // Only used if use_LeesEffect = FALSE
+  DATA_VECTOR(mean_LAA);
+  DATA_VECTOR(mean_WAA);
+  DATA_SCALAR(CV_LAA);
+  
 
   PARAMETER(log_R0);
   PARAMETER(transformed_h);
@@ -78,9 +85,6 @@
   Type penalty = 0;
   Type prior = 0.;
 
-  // Split integration indices
-  vector<vector<int> > integ_index = split(integ_ind, integ_fac);
-
   // Calculate selectivity-at-length
   Type LFS = invlogit(vul_par(0)) * (0.9 * Linf - min_LAA) + min_LAA;
   Type L5 = LFS - exp(vul_par(1));
@@ -89,31 +93,39 @@
   Type sl = (LFS - L5) / pow(-log2(0.05), 0.5);
   Type sr = (Linf - LFS) / pow(-log2(Vmaxlen), 0.5);
 
-  vector<Type> Select_at_length(Nbins);
-  Select_at_length = s_dnormal(LenMids, LFS, sl, sr, Vmaxlen);
-
- 
-  // matrix<Type> SAA(max_age, ngtg); // selectivity-at-age by GTG
-  // SAA = s_dnormal(LAA, LFS, sl, sr, Vmaxlen);
-
+  vector<Type> Select_at_length = s_dnormal(LenMids, LFS, sl, sr, Vmaxlen);
+  
+  // Probability of length given age
+  vector<matrix<Type> > probLA(n_y+1);
+  
+  // Only used if LeesEffect = TRUE, get Select_at_age later
+  vector<vector<int> > integ_index = split(integ_ind, integ_fac);
+  matrix<Type> SAA = s_dnormal(LAA, LFS, sl, sr, Vmaxlen); // Selectivity at age and GTG
+  
+  // Only used if LeesEffect = FALSE, get Select_at_age now
+  probLA(0) = LenAge_matrix(LenMids, mean_LAA, CV_LAA, max_age, LenMids.size(), LenMids(1) - LenMids(0));
+  
+  vector<Type> Select_at_age2(max_age);
+  Select_at_age2.setZero();
+  for(int a=0;a<max_age;a++) {
+    for(int len=0;len<Nbins;len++) Select_at_age2(a) += probLA(0)(a,len) * Select_at_length(len);
+  }
 
   ////// Equilibrium reference points and per-recruit quantities
-  // matrix<Type> NPR_virgin(max_age, ngtg);
-  // NPR_virgin = LeesApp_fn(Type(0), rdist, M, SAA, max_age, ngtg);
+  vector<Type> NPR_virgin(max_age);
+  vector<Type> Weight_virgin(max_age);
+  if(use_LeesEffect) {
+    NPR_virgin = LeesApp_fn(Type(0), rdist, M, SAA, WAA, Weight_virgin, max_age, ngtg);
+  } else {
+    NPR_virgin = calc_NPR(Type(0), Select_at_age2, M, max_age);
+    Weight_virgin = mean_WAA;
+  }
 
   Type EPR0 = 0;
   Type B0 = 0;
-
-  // for(int a=0;a<max_age;a++) {
-  //   for(int g=0;g<ngtg;g++) {
-  //     EPR0 += NPR_virgin(a,g) * WAA(a,g) * mat(a);
-  //     B0 += NPR_virgin(a,g) * WAA(a,g);
-  //   }
-  // }
-  weight = mean-weight-at-age // need to add 
   for(int a=0;a<max_age;a++) {
-      EPR0 += NPR_virgin(a) * weight(a) * mat(a);
-      B0 += NPR_virgin(a) * weight(a);
+    EPR0 += NPR_virgin(a) * Weight_virgin(a) * mat(a);
+    B0 += NPR_virgin(a) * Weight_virgin(a);
   }
   
   B0 *= R0;
@@ -152,11 +164,10 @@
   vector<Type> B(n_y+1);            // Total biomass at year
   vector<Type> E(n_y+1);            // Spawning biomass at year
 
-  //matrix<Type> NAA(n_y, max_age);
   vector<matrix<Type> > NPR(n_y+1);
-  vector<matrix<Type> > probLA(n_y+1);
   vector<matrix<Type> > probGTGA(n_y+1);
   matrix<Type> Select_at_age(n_y+1, max_age);
+  matrix<Type> Weight_at_age(n_y+1, max_age);
 
   CN.setZero();
   CALpred.setZero();
@@ -166,20 +177,21 @@
   E.setZero();
 
   Select_at_age.setZero();
+  Weight_at_age.setZero();
 
   // Equilibrium quantities (leading into first year of model)
-  // matrix<Type> NPR_equilibrium(max_age, ngtg);
-  // NPR_equilibrium = LeesApp_fn(F_equilibrium, rdist, M, SAA, max_age, ngtg);
-  Type EPR_eq = 0;
-  // for(int a=0;a<max_age;a++) {
-  //   for(int g=0;g<ngtg;g++) {
-  //     EPR_eq += NPR_equilibrium(a,g) * WAA(a,g) * mat(a);
-  //   }
-  // }
-  for(int a=0;a<max_age;a++) {
-    EPR_eq += NPR_equilibrium(a) * weight(a) * mat(a);
+  vector<Type> NPR_equilibrium(max_age);
+  vector<Type> Weight_equilibrium(max_age);
+  if(use_LeesEffect) {
+    NPR_equilibrium = LeesApp_fn(F_equilibrium, rdist, M, SAA, WAA, Weight_equilibrium, max_age, ngtg);
+  } else {
+    NPR_equilibrium = calc_NPR(F_equilibrium, Select_at_age2, M, max_age);
+    Weight_equilibrium = mean_WAA;
   }
-  
+  Type EPR_eq = 0;
+  for(int a=0;a<max_age;a++) {
+    EPR_eq += NPR_equilibrium(a) * Weight_equilibrium(a) * mat(a);
+  }
 
   Type R_eq;
   if(SR_type == "BH") {
@@ -193,36 +205,26 @@
   if(!R_IsNA(asDouble(est_rec_dev(0)))) R(0) *= exp(log_rec_dev(0) - 0.5 * pow(tau, 2));
 
   if(use_LeesEffect) {
-    probLA(0) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
-           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0, interp_check, interp_check2,
+    probLA(0) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, WAA, xout, Select_at_length, 
+           Select_at_age, Weight_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0, interp_check, interp_check2,
            integ_check, integ_index);
-    weight = // mean weight-at-age dependant on F can be calculated in LeesApp_fn 
-  } else {
-    vector<Type> F0(n_y);
-    F0.setZero();
-    probLA(0) = LeesApp_fn(F0, Type(0), rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
-           Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, 0, interp_check, interp_check2,
-           integ_check, integ_index);
+  } else { //probLA(0) defined earlier
+    Select_at_age.row(0) = Select_at_age2;
+    Weight_at_age.row(0) = mean_WAA;
   }
 
   for(int a=0;a<max_age;a++) {
     if(a == 0) {
-      N(0,a) = R(0) * NPR_equilibrium.row(a).sum();
+      N(0,a) = R(0) * NPR_equilibrium(a);
     } else {
       R_early(a-1) = R_eq;
       if(!R_IsNA(asDouble(est_early_rec_dev(a-1)))) R_early(a-1) *= exp(log_early_rec_dev(a-1) - 0.5 * pow(tau, 2));
-      N(0,a) = R_early(a-1) * NPR_equilibrium.row(a).sum();
+      N(0,a) = R_early(a-1) * NPR_equilibrium(a);
     }
-
-    // for(int g=0;g<ngtg;g++) {
-    //   B(0) += N(0,a) * probGTGA(0)(a,g) * WAA(a,g);
-    //   VB(0) += N(0,a) * probGTGA(0)(a,g) * WAA(a,g) * Select_at_age(0,a);
-    //   E(0) += N(0,a) * probGTGA(0)(a,g) * WAA(a,g) * mat(a);
-    // }
     
-    B(0) += N(0,a) * weight(a);
-    VB(0) += N(0,a) * weight(a) * Select_at_age(0,a);
-    E(0) += N(0,a) * weight(a) * mat(a);
+    B(0) += N(0,a) * Weight_at_age(0,a);
+    VB(0) += N(0,a) * Weight_at_age(0,a) * Select_at_age(0,a);
+    E(0) += N(0,a) * Weight_at_age(0,a) * mat(a);
     
   }
 
@@ -240,19 +242,15 @@
       if(!R_IsNA(asDouble(est_rec_dev(y+1)))) R(y+1) *= exp(log_rec_dev(y+1) - 0.5 * pow(tau, 2));
     }
     N(y+1,0) = R(y+1);
-    
-    //F(y) = CppAD::CondExpLt(3 - exp(logF(y)), Type(0), 3 - posfun(3 - exp(logF(y)), Type(0), penalty), exp(logF(y)));
 
     if(use_LeesEffect) {
-      probLA(y+1) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, xout, Select_at_length,
-             Select_at_age, NPR, probGTGA, Nbins, max_age, ngtg, y+1, interp_check, interp_check2,
+      probLA(y+1) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, WAA, xout, Select_at_length,
+             Select_at_age, Weight_at_age, NPR, probGTGA, Nbins, max_age, ngtg, y+1, interp_check, interp_check2,
              integ_check, integ_index);
-      weight = // mean weight-at-age dependant on F can be calculated in LeesApp_fn 
     } else {
       probLA(y+1) = probLA(0);
       Select_at_age.row(y+1) = Select_at_age.row(0);
-      NPR(y+1) = NPR(0);
-      // probGTGA(y+1) = probGTGA(0);
+      Weight_at_age.row(y+1) = Weight_at_age.row(0);
     }
 
     for(int a=0;a<max_age;a++) {
@@ -261,18 +259,11 @@
       CAApred(y,a) = Select_at_age(y,a) * F(y) * meanN;
       CN(y) += CAApred(y,a);
       for(int len=0;len<Nbins;len++) CALpred(y,len) += probLA(y)(a,len) * CAApred(y,a);
-
-      // for(int g=0;g<ngtg;g++) {
-      //   Cpred(y) += CAApred(y,a) * probGTGA(y)(a,g) * WAA(a,g);
-      //   B(y+1) += N(y+1,a) * probGTGA(y+1)(a,g) * WAA(a,g);
-      //   VB(y+1) += N(y+1,a) * probGTGA(y+1)(a,g) * WAA(a,g) * Select_at_age(y+1,a);
-      //   E(y+1) += N(y+1,a) * probGTGA(y+1)(a,g) * WAA(a,g) * mat(a);
-      // }
    
-      Cpred(y) += CAApred(y,a) *weight(a);
-      B(y+1) += N(y+1,a) * weight(a);
-      VB(y+1) += N(y+1,a) * weight(a) * Select_at_age(y+1,a);
-      E(y+1) += N(y+1,a) * weight(a) * mat(a);
+      Cpred(y) += CAApred(y,a) * Weight_at_age(y,a);
+      B(y+1) += N(y+1,a) * Weight_at_age(y+1,a);
+      VB(y+1) += N(y+1,a) * Weight_at_age(y+1,a) * Select_at_age(y+1,a);
+      E(y+1) += N(y+1,a) * Weight_at_age(y+1,a) * mat(a);
       
     }
   }
@@ -364,11 +355,14 @@
   REPORT(E);
 
   REPORT(probLA);
-  REPORT(probGTGA);
-  REPORT(NPR);
+  if(use_LeesEffect) {
+    REPORT(probGTGA);
+    REPORT(NPR);
+  }
   REPORT(SAA);
   REPORT(Select_at_length);
   REPORT(Select_at_age);
+  REPORT(Weight_at_age);
 
   REPORT(log_early_rec_dev);
   REPORT(log_rec_dev);
