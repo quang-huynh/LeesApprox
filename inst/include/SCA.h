@@ -128,7 +128,7 @@
     NPR_virgin = LeesApp_fn(Type(0), rdist, M, SAA, WAA, Weight_virgin, max_age, ngtg);
     NPR_equilibrium = LeesApp_fn(F_equilibrium, rdist, M, SAA, WAA, Weight_equilibrium, max_age, ngtg);
     
-    for(int y=0;y<=n_y;y++) {
+    for(int y=0;y<=n_y;y++) { // Also updates Weight_at_age, Select_age, NPR, probGTGA
       probLA(y) = LeesApp_fn(F, F_equilibrium, rdist, M, SAA, LenBins, LAA, WAA, xout, Select_at_length, 
              Select_at_age, Weight_at_age, NPR, probGTGA, Nbins, max_age, ngtg, y, interp_check, interp_check2,
              integ_check, integ_index);
@@ -360,6 +360,9 @@
   REPORT(Select_at_length);
   REPORT(Select_at_age);
   REPORT(Weight_at_age);
+  
+  REPORT(Weight_virgin);
+  REPORT(Weight_equilibrium);
 
   REPORT(log_early_rec_dev);
   REPORT(log_rec_dev);

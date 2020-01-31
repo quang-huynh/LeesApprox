@@ -188,14 +188,13 @@ vector<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type>
   vector<Type> NPR(maxage);
 
   for (int a=0; a<maxage; a++) {
-    if(a>0) {
-      for(int g=0; g<ngtg; g++) {
+    for(int g=0; g<ngtg; g++) {
+      if(a>0) {
         Type Zs = 0;
         for (int a2=0; a2<a; a2++) Zs += M(a2) + F * SAA(a2,g);
         Ns(a,g) = Ns(0,g) * exp(-Zs);
-        
-        Weight_at_age(a) += Ns(a,g) * WAA(a,g);
       }
+      Weight_at_age(a) += Ns(a,g) * WAA(a,g);
     }
     NPR(a) = Ns.row(a).sum();
     Weight_at_age(a) /= NPR(a);
@@ -213,14 +212,13 @@ matrix<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type>
   Ns.row(0) = rdist;
 
   for (int a=0; a<maxage; a++) {
-    if(a>0) {
-      for(int g=0; g<ngtg; g++) {
+    for(int g=0; g<ngtg; g++) {
+      if(a>0) {
         Type Zs = 0;
         for (int a2=0; a2<a; a2++) Zs += M(a2) + F * SAA(a2,g);
         Ns(a,g) = Ns(0,g) * exp(-Zs);
-        
-        Weight_at_age(a) += Ns(a,g) * WAA(a,g);
       }
+      Weight_at_age(a) += Ns(a,g) * WAA(a,g);
     }
     NPR(a) = Ns.row(a).sum();
     Weight_at_age(a) /= NPR(a);
