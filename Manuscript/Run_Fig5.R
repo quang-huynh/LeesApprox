@@ -7,7 +7,7 @@ library(DLMextra)
 source('Manuscript/functions.r')
 source('Manuscript/Figure_5.r')
 
-CVs <- 0.01 # obs error on index and catches
+CVs <- 0.05 # obs error on index and catches
 LH_CV <- 0.05 # obs error on life-history parameters
 
 LengthSampSize <- 100
@@ -20,8 +20,8 @@ fix_sigma <- TRUE
 
 control <- list(iter.max = 5e+05, eval.max = 7e+05)
 # Fit Assessment Models - Only CAA data 
-CAA_multiplier <- 100
-CAL_multiplier <- 0
+CAA_multiplier <- 0
+CAL_multiplier <- 100
 ngtg_assess <- 11
 
 Stock <- 1
@@ -64,7 +64,8 @@ lines(Mod2@FMort, col="green") # expect Mod2 and Mod3 to be similiar
 plot(genData$Index/genData$Index[1], type="l", ylim=c(0, 1.5))
 lines(Mod1@B_B0, col='blue')
 lines(Mod2@B_B0, col="green") # B_B0 > 1
-
+legend('topright', bty="n", col=c('black', 'blue', 'green'), 
+       lty=1, legend=c("index", 'b_b0 - approx', 'b_b0 - no approx'))
 
 
 
