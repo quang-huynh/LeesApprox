@@ -7,13 +7,13 @@ library(DLMextra)
 source('Manuscript/functions.r')
 source('Manuscript/Figure_5.r')
 
+set.seed(1001)
 CVs <- 0.05 # obs error on index and catches
 LH_CV <- 0.05 # obs error on life-history parameters
 
 LengthSampSize <- 100
 AgeSampSize <- 100
-DatYears <- 50 # NA = data from all years, otherwise index, CAA and CAL data for last `DatYears` years
-
+DatYears <- 45 # NA = data from all years, otherwise index, CAA and CAL data for last `DatYears` years
 
 vulnerability <- 'logistic' # 'dome'
 fix_sigma <- TRUE 
