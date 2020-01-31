@@ -143,7 +143,7 @@ qqline(log(Obs_Catch/Catch))
 ```{r, fig.cap="Pearson residual bubble plot of age compositions (grey bubbles are negative, white are positive)."}
 if(any(info$data$CAA_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(Obs_C_at_age, na.rm = TRUE) > 0
-plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], C_at_age[ind_valid, ], plot_type = "bubble_data")
+plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], C_at_age[ind_valid, ], N = info$data$CAA_n[ind_valid], plot_type = "bubble_residuals")
 }
 ```
 
@@ -157,14 +157,14 @@ plot_composition(info$Year[ind_valid], Obs_C_at_age[ind_valid, ], C_at_age[ind_v
 ```{r, fig.cap="Pearson residual bubble plot of length compositions (grey bubbles are negative, white are positive)."}
 if(any(info$data$CAL_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(info$data$CAL_hist, na.rm = TRUE) > 0
-plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "bubble_data")
+plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], CAL_bins = info$data$LenMids, N = info$data$CAL_n[ind_valid], plot_type = "bubble_residuals")
 }
 ```
 
 ```{r, fig.cap="Annual observed (black) and predicted (red) length compositions."}
 if(any(info$data$CAL_n > 0, na.rm = TRUE)) {
 ind_valid <- rowSums(info$data$CAL_hist, na.rm = TRUE) > 0
-plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "annual", N = info$data$CAA_n[ind_valid])
+plot_composition(info$Year[ind_valid], info$data$CAL_hist[ind_valid, ], TMB_report$CALpred[ind_valid, ], CAL_bins = info$data$LenMids, plot_type = "annual", N = info$data$CAL_n[ind_valid])
 }
 ```
 
