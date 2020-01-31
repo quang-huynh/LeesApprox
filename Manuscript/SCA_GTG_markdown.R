@@ -60,14 +60,15 @@ plot_yield_SCA_GTG <- function(dat, report, fmsy, msy, xaxis = c("F", "Biomass",
   BMSY <- report$EMSY
   B0 <- report$E0
   
+  
   TMB_data <- list(model = "LeesApprox_MSY",
-                   max_age = dat$max_age, M = dat$M, WAA = dat$WAA, mat = dat$mat,
-                   SR_type = dat$SR_type, ngtg = dat$ngtg, Nbins = dat$Nbins,
-                   LenBins = dat$LenBins, SAA = report$SAA, Select_at_length = report$Select_at_length,
-                   LAA = dat$LAA, xout = dat$xout, distGTG = dat$distGTG, rdist = dat$rdist,
+                   max_age = dat$max_age, M = dat$M, WAA = dat$WAA, mat = dat$mat, SR_type = dat$SR_type, 
+                   use_LeesEffect = dat$use_LeesEffect, Nbins = dat$Nbins, LenBins = dat$LenBins, 
+                   ngtg = dat$ngtg, distGTG = dat$distGTG, rdist = dat$rdist, WAA = dat$WAA, LAA = dat$LAA, xout = dat$xout, 
                    interp_check = dat$interp_check, interp_check2 = dat$interp_check2, integ_check = dat$integ_check,
                    integ_fac = dat$integ_fac, integ_ind = dat$integ_ind,
-                   use_LeesEffect = dat$use_LeesEffect)
+                   SAA = report$SAA, Select_at_length = report$Select_at_length, 
+                   mean_WAA = dat$mean_WAA, Select_at_age2 = report$Select_at_age[1, ])
   
   TMB_params <- list(log_F = log(0.1), Arec = report$Arec, Brec = report$Brec)
   map <- list()
