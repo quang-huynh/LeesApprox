@@ -302,17 +302,22 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
   }
 
   if(rescale == "mean1") rescale <- 1/mean(C_hist)
-  data <- list(model = "LeesApprox_SCA", C_hist = C_hist * rescale, I_hist = I_hist,
-               CAA_hist = t(apply(CAA_hist, 1, function(x) x/sum(x))), CAA_n = CAA_n_rescale,
-               CAL_hist = t(apply(CAL_hist, 1, function(x) x/sum(x))), CAL_n = CAL_n_rescale,
-               n_y = n_y, max_age = max_age, M = M,
-               WAA = a * LAA^b, mat = mat_age, I_type = I_type,
-               SR_type = SR, est_early_rec_dev = est_early_rec_dev, est_rec_dev = est_rec_dev,
-               ngtg = ngtg, Nbins = Nbins, LenBins = CAL_bins, LenMids = CAL_mids, Linf = Linf,
-               LAA = LAA, min_LAA = min(LAA), xout = xout, distGTG = distGTG, rdist = rdist,
-               interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
-               integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]],
-               use_LeesEffect = as.integer(use_LeesEffect), yind_F = as.integer(0.5 * n_y))
+  data_all <- list(model = "LeesApprox_SCA", C_hist = C_hist * rescale, I_hist = I_hist,
+                   CAA_hist = t(apply(CAA_hist, 1, function(x) x/sum(x))), CAA_n = CAA_n_rescale,
+                   CAL_hist = t(apply(CAL_hist, 1, function(x) x/sum(x))), CAL_n = CAL_n_rescale,
+                   n_y = n_y, max_age = max_age, M = M, mat = mat_age, I_type = I_type, SR_type = SR,
+                   est_early_rec_dev = est_early_rec_dev, est_rec_dev = est_rec_dev,
+                   Nbins = Nbins, LenBins = CAL_bins, LenMids = CAL_mids, Linf = Linf, 
+                   min_LAA = ifelse(use_LeesEffect, min(LAA), min(La) - 2 * LenCV * min(La)), yind_F = as.integer(0.5 * n_y),
+                   use_LeesEffect = as.integer(use_LeesEffect))
+  
+  data_Lee <- list(ngtg = ngtg, distGTG = distGTG, rdist = rdist, WAA = a * LAA^b, LAA = LAA, xout = xout,
+                   interp_check = interp_check, interp_check2 = interp_check2, integ_check = integ_check,
+                   integ_fac = integ_ind[[1]], integ_ind = integ_ind[[2]])
+  
+  data_noLee <- list(mean_LAA = La, mean_WAA = Wa, CV_LAA = LenCV)
+  
+  data <- c(data_all, data_Lee, data_noLee)
   data$CAA_hist[data$CAA_hist < 1e-8] <- 1e-8
   data$CAL_hist[data$CAL_hist < 1e-8] <- 1e-8
 
@@ -550,13 +555,13 @@ class(SCA_GTG) <- "Assess"
 
 SCA_GTG_MSY_calc <- function(report, dat) {
   TMB_data <- list(model = "LeesApprox_MSY",
-                   max_age = dat$max_age, M = dat$M, WAA = dat$WAA, mat = dat$mat,
-                   SR_type = dat$SR_type, ngtg = dat$ngtg, Nbins = dat$Nbins,
-                   LenBins = dat$LenBins, SAA = report$SAA, Select_at_length = report$Select_at_length,
-                   LAA = dat$LAA, xout = dat$xout, distGTG = dat$distGTG, rdist = dat$rdist,
+                   max_age = dat$max_age, M = dat$M, WAA = dat$WAA, mat = dat$mat, SR_type = dat$SR_type, 
+                   use_LeesEffect = dat$use_LeesEffect, Nbins = dat$Nbins, LenBins = dat$LenBins, 
+                   ngtg = dat$ngtg, distGTG = dat$distGTG, rdist = dat$rdist, WAA = dat$WAA, LAA = dat$LAA, xout = dat$xout, 
                    interp_check = dat$interp_check, interp_check2 = dat$interp_check2, integ_check = dat$integ_check,
-                   integ_fac = dat$integ_fac, integ_ind = dat$integ_ind, use_LeesEffect = dat$use_LeesEffect)
-
+                   integ_fac = dat$integ_fac, integ_ind = dat$integ_ind,
+                   SAA = report$SAA, Select_at_length = report$Select_at_length, 
+                   mean_WAA = dat$mean_WAA, Select_at_age2 = report$Select_at_age[1, ])
   TMB_params <- list(log_F = log(0.1), Arec = report$Arec, Brec = report$Brec)
   map <- list()
   map$Arec <- map$Brec <- factor(NA)

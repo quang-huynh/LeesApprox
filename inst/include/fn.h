@@ -140,8 +140,8 @@ matrix<Type> s_dnormal(matrix<Type> Lengths, Type LFS, Type sl, Type sr, Type Vm
 // SAA   - matrix of maxage rows, ngtg cols
 template <class Type>
 matrix<Type> LeesApp_fn(vector<Type> F, Type F_eq, vector<Type> rdist, vector<Type> M, matrix<Type> SAA,
-                        vector<Type> LenBins, matrix<Type> LAA, matrix<Type> xout, vector<Type> Select_at_length,
-                        matrix<Type> &Select_at_age, vector<matrix<Type> > &NPR, vector<matrix<Type> > &probGTGA,
+                        vector<Type> LenBins, matrix<Type> LAA, matrix<Type> WAA, matrix<Type> xout, vector<Type> Select_at_length,
+                        matrix<Type> &Select_at_age, matrix<Type> &Weight_at_age, vector<matrix<Type> > &NPR, vector<matrix<Type> > &probGTGA,
                         int Nbins, int maxage, int ngtg, int y, matrix<int> interp_check, matrix<int> interp_check2,
                         matrix<int> integ_check, vector<vector<int> > integ_index) {
   matrix<Type> Ns(maxage, ngtg);
@@ -174,24 +174,76 @@ matrix<Type> LeesApp_fn(vector<Type> F, Type F_eq, vector<Type> rdist, vector<Ty
 
   for(int a=0; a<maxage; a++) {
     for(int len=0; len<Nbins; len++) Select_at_age(y, a) += probLA(a, len) * Select_at_length(len);
+    for(int g=0; g<ngtg; g++) Weight_at_age(y, a) += probGTG(a, g) * WAA(a, g);
   }
   return probLA;
 }
 
-
+// Equilibrium calcs when LeesEffect = TRUE
 template <class Type>
-matrix<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type> SAA, int maxage, int ngtg) {
+vector<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type> SAA, matrix<Type> WAA,
+                        vector<Type> &Weight_at_age, int maxage, int ngtg) {
+  matrix<Type> Ns(maxage, ngtg);
+  Ns.row(0) = rdist;
+  vector<Type> NPR(maxage);
+
+  for (int a=0; a<maxage; a++) {
+    if(a>0) {
+      for(int g=0; g<ngtg; g++) {
+        Type Zs = 0;
+        for (int a2=0; a2<a; a2++) Zs += M(a2) + F * SAA(a2,g);
+        Ns(a,g) = Ns(0,g) * exp(-Zs);
+        
+        Weight_at_age(a) += Ns(a,g) * WAA(a,g);
+      }
+    }
+    NPR(a) = Ns.row(a).sum();
+    Weight_at_age(a) /= NPR(a);
+  }
+  
+  return NPR;
+}
+
+
+// Equilibrium calcs when LeesEffect = TRUE, return by NPR by GTG
+template <class Type>
+matrix<Type> LeesApp_fn(Type F, vector<Type> rdist, vector<Type> M, matrix<Type> SAA, matrix<Type> WAA,
+                        vector<Type> &NPR, vector<Type> &Weight_at_age, int maxage, int ngtg) {
   matrix<Type> Ns(maxage, ngtg);
   Ns.row(0) = rdist;
 
-  for (int a=1; a<maxage; a++) {
-    for(int g=0; g<ngtg; g++) {
-      Type Zs = 0;
-      for (int a2=0; a2<a; a2++) Zs += M(a2) + F * SAA(a2,g);
-      Ns(a,g) = Ns(0,g) * exp(-Zs);
+  for (int a=0; a<maxage; a++) {
+    if(a>0) {
+      for(int g=0; g<ngtg; g++) {
+        Type Zs = 0;
+        for (int a2=0; a2<a; a2++) Zs += M(a2) + F * SAA(a2,g);
+        Ns(a,g) = Ns(0,g) * exp(-Zs);
+        
+        Weight_at_age(a) += Ns(a,g) * WAA(a,g);
+      }
     }
-  }
-
+    NPR(a) = Ns.row(a).sum();
+    Weight_at_age(a) /= NPR(a);
+  } 
+  
   return Ns;
 }
 
+
+// LeesEffect = FALSE
+template<class Type>
+matrix<Type> LenAge_matrix(vector<Type> LenMids, vector<Type> mean_LAA, Type CV_LAA, int maxage, int Nbins, Type bin_width) {
+  matrix<Type> probLA(maxage, Nbins);
+  for(int a=0;a<maxage;a++) {
+    Type sigma_len = CV_LAA * mean_LAA(a);
+    for(int len=0;len<Nbins;len++) {
+      if(len==Nbins-1) {
+        probLA(a,len) = 1 - pnorm(LenMids(len) - 0.5 * bin_width, mean_LAA(a), sigma_len);
+      } else {
+        probLA(a,len) = pnorm(LenMids(len) + 0.5 * bin_width, mean_LAA(a), sigma_len);
+        if(len>0) probLA(a,len) -= pnorm(LenMids(len) - 0.5 * bin_width, mean_LAA(a), sigma_len);
+      }
+    }
+  }
+  return probLA;
+}
