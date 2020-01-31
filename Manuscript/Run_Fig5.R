@@ -7,12 +7,70 @@ library(DLMextra)
 source('Manuscript/functions.r')
 source('Manuscript/Figure_5.r')
 
-CVs <- 0.1 # obs error on index and catches
+CVs <- 0.01 # obs error on index and catches
 LH_CV <- 0.05 # obs error on life-history parameters
 
 LengthSampSize <- 100
 AgeSampSize <- 100
-DatYears <- 10 # NA = data from all years, otherwise index, CAA and CAL data for last `DatYears` years
+DatYears <- 50 # NA = data from all years, otherwise index, CAA and CAL data for last `DatYears` years
+
+
+vulnerability <- 'logistic' # 'dome'
+fix_sigma <- TRUE 
+
+control <- list(iter.max = 5e+05, eval.max = 7e+05)
+# Fit Assessment Models - Only CAA data 
+CAA_multiplier <- 100
+CAL_multiplier <- 0
+ngtg_assess <- 11
+
+Stock <- 1
+
+genData <- GenerateData(Stock=Stock, DatYears=DatYears, 
+                        CobCV=CVs, IobCV=CVs,
+                        LH_CV=LH_CV,
+                        LengthSampSize=LengthSampSize,
+                        AgeSampSize=AgeSampSize,
+                        Fmulti=1, nbins=30)
+
+annualF <- genData$annualF
+Data <- genData$Data
+LHpars <- genData$LHpars
+
+
+
+
+# with GTG approx
+Mod1 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
+                CAA_multiplier=CAA_multiplier, rescale = 1,
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                control=control, 
+                fix_sigma =fix_sigma)
+# without GTG approx
+Mod2 <- SCA_GTG(Data = Data, ngtg=ngtg_assess, vulnerability = vulnerability,
+                use_LeesEffect = FALSE,
+                CAA_multiplier=CAA_multiplier, rescale = 1,
+                CAL_multiplier= CAL_multiplier, start = list(omega = 0.01),
+                control=control,
+                fix_sigma =fix_sigma)
+
+
+
+plot(annualF, type="l", ylim=c(0, max(annualF*1.5)))
+lines(Mod1@FMort, col='blue')
+lines(Mod2@FMort, col="green") # expect Mod2 and Mod3 to be similiar
+
+
+plot(genData$Index/genData$Index[1], type="l", ylim=c(0, 1.5))
+lines(Mod1@B_B0, col='blue')
+lines(Mod2@B_B0, col="green") # B_B0 > 1
+
+
+
+
+
+
+
 
 Stock <- 1
 saveList <- list(); x <- 0
@@ -36,8 +94,8 @@ for (Stock in 1:3) {
     
     control <- list(iter.max = 5e+05, eval.max = 7e+05)
     # Fit Assessment Models - Only CAA data 
-    CAA_multiplier <- 40
-    CAL_multiplier <- 0
+    CAA_multiplier <- 0
+    CAL_multiplier <- 100
     ngtg_assess <- 11
     
     # with GTG approx
