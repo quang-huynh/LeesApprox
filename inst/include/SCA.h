@@ -86,7 +86,7 @@
 
   // Calculate selectivity-at-length
   Type LFS = invlogit(vul_par(0)) * (0.9 * Linf - min_LAA) + min_LAA;
-  Type L5 = LFS - exp(vul_par(1));
+  Type L5 = LFS - exp(vul_par(1)) * Linf;
   Type Vmaxlen = invlogit(vul_par(2));
 
   Type sl = (LFS - L5) / pow(-log2(0.05), 0.5);

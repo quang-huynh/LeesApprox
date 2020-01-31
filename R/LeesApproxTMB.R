@@ -341,14 +341,14 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
         if(length(start$vul_par) < 2) stop("Two parameters needed for start$vul_par with logistic vulnerability (see help).")
         if(start$vul_par[1] <= start$vul_par[2]) stop("start$vul_par[1] needs to be greater than start$vul_par[2] (see help).")
 
-        params$vul_par <- c(logit(start$vul_par[1]/Linf/0.9), log(start$vul_par[1] - start$vul_par[2]), 10)
+        params$vul_par <- c(logit(start$vul_par[1]/Linf/0.9), log(start$vul_par[1] - start$vul_par[2]) - log(Linf), 10)
       }
       if(vulnerability == "dome") {
         if(length(start$vul_par) < 3) stop("Three parameters needed for start$vul_par with dome vulnerability (see help).")
         if(start$vul_par[1] <= start$vul_par[2]) stop("start$vul_par[1] needs to be greater than start$vul_par[2] (see help).")
         if(start$vul_par[3] <= 0 || start$vul_par[3] >= 1) stop("start$vul_par[3] needs to be between 0-1 (see help).")
 
-        params$vul_par <- c(logit(start$vul_par[1]/Linf/0.9), log(start$vul_par[1] - start$vul_par[2]),
+        params$vul_par <- c(logit(start$vul_par[1]/Linf/0.9), log(start$vul_par[1] - start$vul_par[2]) - log(Linf),
                             logit(start$vul_par[3]))
       }
     }
@@ -386,9 +386,9 @@ SCA_GTG <- function(x = 1, Data, SR = c("BH", "Ricker"), vulnerability = c("logi
       L5 <- min(0.4 * LFS, Data@LFC[x])
     }
     LFS <- max(LFS, min(LAA))
-    if(vulnerability == "logistic") params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5), 10)
+    if(vulnerability == "logistic") params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5) - log(Linf), 10)
     if(vulnerability == "dome") {
-      params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5), logit(0.5))
+      params$vul_par <- c(logit((LFS - min(LAA))/(0.9 * Linf - min(LAA))), log(LFS - L5) - log(Linf), logit(0.5))
     }
   }
   if(is.null(params$logF)) {
